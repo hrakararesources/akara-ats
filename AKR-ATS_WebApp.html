@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบรับสมัครงาน ATS | AKR-OHR-FM-001 | Akara Resources PCL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --primary:#1a4f8a;--primary-light:#e8f0fb;--accent:#c8a84b;
+  --border:#d0d7e2;--bg:#f4f6f9;--white:#ffffff;
+  --text:#1e2a3a;--muted:#6b7a8d;--danger:#c0392b;--success:#1a7a4a;--warn:#b07d10;
+  --radius:6px;--shadow:0 1px 4px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+/* Header */
+.app-header{background:var(--primary);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.app-header .logo{display:flex;align-items:center;gap:12px;font-weight:600;font-size:15px}
+.app-header .logo img{height:34px;background:#fff;border-radius:5px;padding:3px 8px}
+.app-header .logo span{font-size:11px;opacity:.8;font-weight:400;border-left:1px solid rgba(255,255,255,.3);padding-left:10px}
+.doc-badge{background:rgba(255,255,255,.15);padding:3px 10px;border-radius:4px;font-size:11px;font-family:monospace;letter-spacing:.5px}
+.hr-link{font-size:11px;color:rgba(255,255,255,.7);cursor:pointer;margin-left:12px;text-decoration:underline}
+.hr-link:hover{color:#fff}
+/* Layout */
+.container{max-width:980px;margin:24px auto;padding:0 16px}
+.container.wide{max-width:1200px}
+/* Stepper */
+.stepper{display:flex;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;gap:0;overflow-x:auto;box-shadow:var(--shadow)}
+.step-item{flex:1;min-width:80px;display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer}
+.step-item::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:1px;background:var(--border);z-index:0}
+.step-item:last-child::after{display:none}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid var(--border);background:var(--white);z-index:1;transition:all .2s}
+.step-item.done .step-dot{background:var(--success);border-color:var(--success);color:#fff}
+.step-item.active .step-dot{background:var(--primary);border-color:var(--primary);color:#fff}
+.step-label{font-size:10px;margin-top:5px;color:var(--muted);text-align:center;white-space:nowrap}
+.step-item.active .step-label{color:var(--primary);font-weight:600}
+/* Card */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px}
+.card-header{display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:18px;border-bottom:2px solid var(--primary-light)}
+.card-header .icon{width:32px;height:32px;background:var(--primary-light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.card-header h2{font-size:15px;font-weight:600;color:var(--primary)}
+.card-header small{font-size:11px;color:var(--muted);margin-left:4px}
+/* Form */
+.form-grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:2fr 2fr 1fr}
+.g4{grid-template-columns:2fr 2fr 1fr 1fr}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;color:var(--muted);font-weight:500}
+.form-group label .th{color:var(--text)}
+.form-group label .en{color:var(--muted);font-size:11px}
+.form-group input,.form-group select,.form-group textarea{
+  padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);
+  font-size:13px;font-family:inherit;background:#fff;color:var(--text);
+  transition:border-color .15s,box-shadow .15s;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,79,138,.1)}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-group input.err{border-color:var(--danger)}
+.err-msg{color:var(--danger);font-size:11px}
+.section-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.8px;margin:18px 0 10px;display:flex;align-items:center;gap:6px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--primary-light)}
+.radio-group{display:flex;flex-wrap:wrap;gap:6px}
+.radio-btn{padding:5px 12px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s;user-select:none}
+.radio-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600}
+.work-block{border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;position:relative}
+.work-block-num{position:absolute;top:-10px;left:12px;background:var(--primary);color:#fff;font-size:10px;padding:1px 8px;border-radius:3px}
+.photo-wrap{display:flex;gap:16px;align-items:flex-start}
+.photo-box{width:120px;height:150px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;background:#fafbfc;transition:border-color .15s}
+.photo-box:hover{border-color:var(--primary)}
+.photo-box img{width:100%;height:100%;object-fit:cover}
+.photo-box .ph-hint{font-size:10px;color:var(--muted);text-align:center;padding:8px}
+.pdpa-item{border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
+.pdpa-item p{font-size:13px;line-height:1.6;margin-bottom:8px}
+.pdpa-btns{display:flex;gap:8px}
+.pdpa-btn{padding:4px 14px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;background:#fff;transition:all .15s}
+.pdpa-btn.yes.on{background:#e8f8f0;border-color:#27ae60;color:#1a7a4a;font-weight:600}
+.pdpa-btn.no.on{background:#fdf0ee;border-color:var(--danger);color:var(--danger);font-weight:600}
+.check-row{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;cursor:pointer}
+.check-row input[type=checkbox]{margin-top:2px;flex-shrink:0;width:14px;height:14px}
+.toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.toolbar .doc-info{margin-left:auto;font-size:11px;color:var(--muted);font-family:monospace}
+.btn{padding:8px 20px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;font-size:13px;font-family:inherit;font-weight:500;display:inline-flex;align-items:center;gap:6px;transition:all .15s;background:#fff}
+.btn:hover{filter:brightness(.96)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:#153f70}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-outline{background:#fff;color:var(--primary);border-color:var(--primary)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:default}
+.nav-bar{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.nav-bar .step-info{font-size:12px;color:var(--muted)}
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.alert-info{background:#e8f0fb;border:1px solid #b8d0f0;color:var(--primary)}
+.alert-success{background:#e8f8f0;border:1px solid #86e0b0;color:var(--success)}
+.alert-warn{background:#fef9ec;border:1px solid #f0c040;color:#7a5c00}
+.success-screen{text-align:center;padding:48px 24px}
+.success-icon{width:72px;height:72px;border-radius:50%;background:#e8f8f0;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px}
+/* ============ ATS DASHBOARD ============ */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);border-top:3px solid var(--border);cursor:pointer;transition:transform .1s}
+.stat-card:hover{transform:translateY(-1px)}
+.stat-card.on{outline:2px solid var(--primary)}
+.stat-card .num{font-size:26px;font-weight:700;line-height:1.2}
+.stat-card .lbl{font-size:11px;color:var(--muted)}
+.stat-card.s-all{border-top-color:var(--primary)}.stat-card.s-all .num{color:var(--primary)}
+.stat-card.s-new{border-top-color:#2980b9}.stat-card.s-new .num{color:#2980b9}
+.stat-card.s-screen{border-top-color:var(--accent)}.stat-card.s-screen .num{color:var(--warn)}
+.stat-card.s-intv{border-top-color:#8e44ad}.stat-card.s-intv .num{color:#8e44ad}
+.stat-card.s-pass{border-top-color:var(--success)}.stat-card.s-pass .num{color:var(--success)}
+.stat-card.s-fail{border-top-color:var(--danger)}.stat-card.s-fail .num{color:var(--danger)}
+.ats-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.ats-table th{background:var(--primary);color:#fff;font-size:12px;font-weight:600;padding:9px 12px;text-align:left;white-space:nowrap}
+.ats-table td{padding:8px 12px;border-bottom:1px solid #eef1f5;font-size:13px;vertical-align:middle}
+.ats-table tr:hover td{background:#f6f9fd}
+.ats-table .rec-no{font-family:monospace;font-size:11px;color:var(--primary);font-weight:600}
+.status-pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.st-ใหม่{background:#e8f0fb;color:#2471a3}
+.st-คัดกรอง{background:#fdf6e3;color:var(--warn)}
+.st-นัดสัมภาษณ์{background:#f3e8fb;color:#8e44ad}
+.st-ผ่าน{background:#e8f8f0;color:var(--success)}
+.st-ไม่ผ่าน{background:#fdf0ee;color:var(--danger)}
+.status-sel{padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit}
+.search-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.search-bar input,.search-bar select{padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none}
+.search-bar input{flex:1;min-width:200px}
+.empty-state{text-align:center;padding:48px;color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:var(--radius)}
+.login-box{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:32px;box-shadow:var(--shadow);text-align:center}
+.detail-grid{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-size:13px}
+.detail-grid dt{color:var(--muted)}
+.detail-grid dd{font-weight:500}
+.note-area{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:13px;min-height:54px;resize:vertical}
+.mode-tag{font-size:10px;padding:2px 8px;border-radius:3px;background:#fef9ec;color:#7a5c00;border:1px solid #f0c040;margin-left:8px}
+/* ============ PRINT DOCUMENT (AKR-OHR-FM-001 replica) ============ */
+#printArea{display:none}
+.pp{width:210mm;min-height:296mm;background:#fff;margin:0 auto 10mm;padding:10mm 12mm 8mm;display:flex;flex-direction:column;position:relative;font-size:9.5pt;line-height:1.45;color:#000}
+.pp-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #1a4f8a;padding-bottom:2mm;margin-bottom:3mm}
+.pp-head img{height:11mm}
+.pp-head .mine{color:#555;font-size:8pt}
+.pp-title{background:#1a4f8a;color:#fff;text-align:center;font-weight:700;font-size:12pt;padding:1.6mm 0}
+.pp-commit{background:#1a4f8a;color:#fff;font-size:7pt;text-align:center;padding:1mm 3mm;line-height:1.4}
+.pp-sec{background:#1a4f8a;color:#fff;font-weight:700;padding:1mm 3mm;margin-top:2.5mm;font-size:9.5pt}
+.pp table{width:100%;border-collapse:collapse}
+.pp td,.pp th{border:.5pt solid #000;padding:1mm 2mm;vertical-align:top;font-size:9pt}
+.pp .lb{background:#e8f0fa;font-size:7.5pt;line-height:1.3}
+.pp .ck{font-size:11pt;line-height:1}
+.pp .sm{font-size:7.5pt}
+.pp-photo{border:.5pt solid #000;width:28mm;height:36mm;display:flex;align-items:center;justify-content:center;font-size:7pt;color:#888;overflow:hidden}
+.pp-photo img{width:100%;height:100%;object-fit:cover}
+/* ISO footer — bottom of EVERY page */
+.pp-footer{margin-top:auto;border-top:.5pt solid #888;padding-top:1.5mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#444;font-family:'Sarabun',Tahoma,sans-serif}
+.pp-footer b{font-family:monospace;letter-spacing:.3px}
+@media print{
+  body{background:#fff}
+  body.printing .app-shell{display:none!important}
+  body.printing #printArea{display:block}
+  .pp{margin:0;box-shadow:none;page-break-after:always;min-height:0;height:277mm;overflow:hidden}
+  .pp:last-child{page-break-after:auto}
+  @page{size:A4;margin:10mm 0}
+}
+/* Print preview on screen */
+body.preview-mode #printArea{display:block;background:#9aa5b1;padding:10mm 0}
+body.preview-mode .pp{box-shadow:0 2px 12px rgba(0,0,0,.3)}
+@media(max-width:640px){
+  .g2,.g3,.g4{grid-template-columns:1fr!important}
+  .toolbar{gap:6px}
+  .btn{padding:7px 12px;font-size:12px}
+  .detail-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<header class="app-header">
+  <div class="logo">
+    <img id="logoImg" src="" alt="Akara Resources">
+    <div>
+      <div style="font-size:13px">Akara Resources PCL <span id="modeTag"></span></div>
+      <span>Human Resources — Recruitment ATS</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <div class="doc-badge">AKR-OHR-FM-001 Rev.01</div>
+    <span class="hr-link" id="hrLink" onclick="toggleHR()">สำหรับเจ้าหน้าที่ HR</span>
+  </div>
+</header>
+<div class="container" id="appView"></div>
+</div>
+<div id="printArea"></div>
+<script>
+var LOGO_SRC = 'data:image/jpeg;base64,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';
+// ════════════════════════════════════════════════════════════════════
+// AKR Recruitment ATS — AKR-OHR-FM-001 Rev.01
+// โหมดผู้สมัคร + โหมด HR Dashboard + พิมพ์ฟอร์มพร้อมเลขเอกสาร ISO ทุกหน้า
+// ════════════════════════════════════════════════════════════════════
+var CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbw_-fAqA-EyDfg-8ciksKFeTYOpmMiHvM2Na4jcW48OjOu57OOUNilBsa5eihL6CcKnIg/exec',                 // วาง URL ของ Google Apps Script Web App — เว้นว่าง = โหมดทดลอง (เก็บในเครื่อง)
+  HR_PASS: '117568',        // รหัสเข้า HR Dashboard (เปลี่ยนก่อนใช้งานจริง)
+  DOC: { no:'AKR-OHR-FM-001', rev:'01', effective:'20/Jun/2025', pages:3 }
+};
+var STATUSES = ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
+var STEPS = ['ตำแหน่งงาน','ข้อมูลส่วนตัว','การศึกษา','ประวัติการทำงาน','ทักษะ & อื่นๆ','ความยินยอม PDPA'];
+
+var view = 'apply';            // apply | success | login | dashboard | detail
+var cur = 0;
+var photoDataURL = null;
+var records = [];
+var hrAuthed = false;
+var currentRec = null;
+var filterStatus = '';
+var searchText = '';
+var lastSubmitted = null;
+
+var F;
+function blankF(){
+  var edu = {};
+  EDU_LEVELS.forEach(function(lv){ edu[lv.k] = {ins:'',field:'',year:'',gpa:''}; });
+  return {
+    pos1:'',pos2:'',pos3:'',salary:'',
+    firstName:'',lastName:'',dob:'',
+    houseAddr:'',presentAddr:'',
+    phone:'',email:'',idCard:'',idExpiry:'',lineId:'',
+    military:'',
+    edu: edu,
+    works: [0,1,2,3].map(function(){return {company:'',position:'',salary:'',from:'',to:'',acc:'',reason:''};}),
+    compSkills:['','',''],
+    langSkills:[{lang:'',level:''},{lang:'',level:''}],
+    emgName:'',emgPhone:'',emgAddr:'',emgRel:'',
+    known:[{name:'',rel:''},{name:'',rel:''}],
+    pdpa:{q1:null,q2:null,q3:null,q4:null},
+    agreed:false
+  };
+}
+var EDU_LEVELS = [
+  {k:'primary',l:'ประถมศึกษา',e:'Primary'},
+  {k:'secondary',l:'มัธยมศึกษา',e:'Secondary'},
+  {k:'vocational',l:'ปวช.',e:'Vocational'},
+  {k:'diploma',l:'ปวส.',e:'Diploma'},
+  {k:'bachelor',l:'ปริญญาตรี',e:"Bachelor's Degree"},
+  {k:'master',l:'ปริญญาโท',e:"Master's Degree"},
+  {k:'other',l:'อื่นๆ',e:'Other'}
+];
+F = blankF();
+var MIL_OPTS = [
+  {v:'completed',l:'ผ่านการเกณฑ์ทหาร',e:'Completed'},
+  {v:'not_completed',l:'ยังไม่ผ่านการเกณฑ์ทหาร',e:'Not Completed'},
+  {v:'studied',l:'ศึกษาวิชาทหาร',e:'Military Studied'},
+  {v:'exempted',l:'ได้รับการยกเว้น',e:'Exempted'}
+];
+var PDPA_ITEMS = [
+  {k:'q1', t:'การตรวจสอบประวัติอาชญากรรมของท่าน เพื่อประกอบการตัดสินใจรับเข้าทำงานและทำสัญญาจ้างงานกับบริษัท'},
+  {k:'q2', t:'การตรวจร่างกายก่อนเข้าทำงาน หรือก่อนทำสัญญาจ้างงาน เพื่อประเมินสมรรถนะและความเสี่ยงในตำแหน่งงานที่ท่านสมัคร รวมถึงการจัดสวัสดิการที่เกี่ยวข้องกับสุขภาพท่าน'},
+  {k:'q3', t:'การตรวจสอบข้อมูลของท่านจากบุคคลอ้างอิงที่ท่านระบุ ตรวจสอบประวัติการทำงานก่อนหน้า เพื่อประกอบการตัดสินใจรับเข้าทำงาน และทำสัญญาจ้างงานกับบริษัท'},
+  {k:'q4', t:'การเปิดเผยข้อมูลในใบสมัครงานกับบริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) เพื่อพิจารณาคุณสมบัติของผู้สมัครงานก่อนเรียกสัมภาษณ์'}
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s===undefined||s===null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function val(s){ return (s===undefined||s===null||s==='') ? '' : esc(s); }
+function todayTH(){ return new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'}); }
+function dateTH(iso){
+  if(!iso) return '';
+  var d = new Date(iso);
+  if(isNaN(d)) return esc(iso);
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+(d.getFullYear()+543);
+}
+function monthTH(ym){
+  if(!ym) return '';
+  var p = String(ym).split('-');
+  if(p.length<2) return esc(ym);
+  return p[1]+'/'+(parseInt(p[0],10)+543);
+}
+function milLabel(v){
+  var o = MIL_OPTS.filter(function(m){return m.v===v;})[0];
+  return o ? o.l : '';
+}
+function showErr(id,msg){ var e=$('err_'+id); if(e){e.textContent=msg;} var i=$(id); if(i){i.classList.add('err');} }
+function clearErr(id){ var e=$('err_'+id); if(e){e.textContent='';} var i=$(id); if(i){i.classList.remove('err');} }
+
+// ─── Data layer: GAS API หรือ localStorage (demo) ─────────────────────
+function isDemo(){ return !CONFIG.API_URL; }
+function lsLoad(){ try{ return JSON.parse(localStorage.getItem('akr_ats')||'[]'); }catch(e){ return []; } }
+function lsSave(arr){ localStorage.setItem('akr_ats', JSON.stringify(arr)); }
+function nextRecNo(arr){
+  var yearBE = new Date().getFullYear() + 543;
+  var prefix = 'REC-' + yearBE + '-';
+  var max = 0;
+  arr.forEach(function(r){
+    if(r.id && r.id.indexOf(prefix)===0){
+      var n = parseInt(r.id.slice(prefix.length),10);
+      if(n>max) max=n;
+    }
+  });
+  return prefix + ('0000'+(max+1)).slice(-4);
+}
+function apiSubmit(record){
+  if(isDemo()){
+    var arr = lsLoad();
+    record.id = nextRecNo(arr);
+    arr.unshift(record);
+    lsSave(arr);
+    return Promise.resolve(record);
+  }
+  return fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'submit', record:record})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok) throw new Error(res.error||'submit failed');
+    record.id = res.id;
+    return record;
+  });
+}
+function apiList(){
+  if(isDemo()){ return Promise.resolve(lsLoad()); }
+  return fetch(CONFIG.API_URL + '?action=list').then(function(r){return r.json();})
+    .then(function(res){ if(!res.ok) throw new Error(res.error||'list failed'); return res.records; });
+}
+function apiUpdate(id, status, note){
+  if(isDemo()){
+    var arr = lsLoad();
+    arr.forEach(function(r){ if(r.id===id){ r.status=status; if(note!==undefined) r.note=note; } });
+    lsSave(arr);
+    return Promise.resolve(true);
+  }
+  return fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'update', id:id, status:status, note:note})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok) throw new Error(res.error||'update failed');
+    return true;
+  });
+}
+
+// ─── Applicant form: field builders ──────────────────────────────────
+function fld(lth,len,id,type,v,ph){
+  return '<div class="form-group"><label for="'+id+'"><span class="th">'+lth+'</span> <span class="en">'+len+'</span></label>'
+    + '<input type="'+(type||'text')+'" id="'+id+'" value="'+val(v)+'" placeholder="'+esc(ph||'')+'" oninput="F[\''+id+'\']=this.value;clearErr(\''+id+'\')">'
+    + '<span class="err-msg" id="err_'+id+'"></span></div>';
+}
+function fldTA(lth,len,id,v,ph){
+  return '<div class="form-group"><label><span class="th">'+lth+'</span> <span class="en">'+len+'</span></label>'
+    + '<textarea id="'+id+'" placeholder="'+esc(ph||'')+'" oninput="F[\''+id+'\']=this.value">'+val(v)+'</textarea></div>';
+}
+
+function buildStep0(){
+  return '<div class="card"><div class="card-header"><div class="icon">💼</div><h2>ตำแหน่งที่ต้องการสมัคร <small>Position Applied 1-3</small></h2></div>'
+    + '<div class="alert alert-info">📄 แบบฟอร์ม <strong>'+CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev+'</strong> | วันที่กรอก: '+todayTH()+(isDemo()?' <span class="mode-tag">โหมดทดลอง — ข้อมูลเก็บในเครื่องนี้</span>':'')+'</div>'
+    + '<div class="form-grid g2">'+fld('ตำแหน่งลำดับที่ 1 *','1st Choice','pos1','text',F.pos1,'ตำแหน่งที่ต้องการสมัคร')+fld('เงินเดือนที่คาดหวัง *','Expected Salary (THB)','salary','text',F.salary,'บาท/เดือน')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:12px">'+fld('ตำแหน่งลำดับที่ 2','2nd Choice','pos2','text',F.pos2,'')+fld('ตำแหน่งลำดับที่ 3','3rd Choice','pos3','text',F.pos3,'')+'</div></div>';
+}
+function buildStep1(){
+  var ph = photoDataURL ? '<img src="'+photoDataURL+'" alt="">' : '<div class="ph-hint">📷<br>คลิกเพื่อแนบรูปถ่าย<br><span style="font-size:9px;color:#aaa">1 นิ้ว หรือ 1.5 นิ้ว</span></div>';
+  var mil = MIL_OPTS.map(function(o){
+    return '<span class="radio-btn'+(F.military===o.v?' active':'')+'" data-v="'+o.v+'" onclick="setMil(this)">'+o.l+' / '+o.e+'</span>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">👤</div><h2>ข้อมูลส่วนตัว <small>Personal Information</small></h2></div>'
+    + '<div class="photo-wrap"><div><div class="photo-box" onclick="$(\'photoInput\').click()">'+ph+'</div>'
+    + '<p style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px">รูปถ่าย / Photo</p>'
+    + '<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(this)">'
+    + (photoDataURL?'<button class="btn btn-sm" style="width:100%;margin-top:4px;color:var(--danger)" onclick="photoDataURL=null;render()">✕ ลบรูป</button>':'')
+    + '</div><div style="flex:1"><div class="form-grid g2">'+fld('ชื่อ *','First Name','firstName','text',F.firstName,'')+fld('นามสกุล *','Last Name','lastName','text',F.lastName,'')+'</div>'
+    + '<div style="margin-top:12px">'+fld('วัน เดือน ปี เกิด','Date of Birth','dob','date',F.dob,'')+'</div></div></div>'
+    + '<div class="form-grid" style="margin-top:14px">'+fldTA('ที่อยู่ตามทะเบียนบ้าน','House Registration Address','houseAddr',F.houseAddr,'บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด รหัสไปรษณีย์')
+    + fldTA('ที่อยู่ปัจจุบัน (กรณีต่างจากทะเบียนบ้าน)','Present Address if different','presentAddr',F.presentAddr,'เว้นว่างหากเหมือนที่อยู่ตามทะเบียนบ้าน')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:12px">'+fld('เบอร์โทรศัพท์ *','Telephone','phone','tel',F.phone,'0xx-xxx-xxxx')+fld('อีเมล *','Email Address','email','email',F.email,'name@example.com')+'</div>'
+    + '<div class="form-grid g3" style="margin-top:12px">'+fld('เลขบัตรประชาชน *','ID Card Number','idCard','text',F.idCard,'x-xxxx-xxxxx-xx-x')+fld('วันหมดอายุบัตร','Expired Date','idExpiry','date',F.idExpiry,'')+fld('ไลน์ไอดี','Line ID','lineId','text',F.lineId,'')+'</div>'
+    + '<div class="section-label">สถานะทางทหาร Military Service</div><div class="radio-group" id="milGroup">'+mil+'</div></div>';
+}
+function setMil(el){
+  F.military = el.getAttribute('data-v');
+  var g=$('milGroup'); if(!g) return;
+  var btns=g.querySelectorAll('.radio-btn');
+  for(var i=0;i<btns.length;i++){ btns[i].classList.toggle('active', btns[i].getAttribute('data-v')===F.military); }
+}
+function buildStep2(){
+  var rows = EDU_LEVELS.map(function(lv){
+    var e = F.edu[lv.k]||{};
+    return '<div class="work-block" style="margin-bottom:10px"><div class="work-block-num">'+lv.l+' / '+lv.e+'</div>'
+      + '<div class="form-grid g4" style="margin-top:6px">'
+      + '<div class="form-group"><label><span class="th">สถาบัน</span> <span class="en">Institution</span></label><input value="'+val(e.ins)+'" oninput="F.edu.'+lv.k+'.ins=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">สาขาวิชา</span> <span class="en">Field of Study</span></label><input value="'+val(e.field)+'" oninput="F.edu.'+lv.k+'.field=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ปีที่จบ</span> <span class="en">Year</span></label><input value="'+val(e.year)+'" placeholder="2566" oninput="F.edu.'+lv.k+'.year=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">เกรด</span> <span class="en">GPA</span></label><input value="'+val(e.gpa)+'" placeholder="3.00" oninput="F.edu.'+lv.k+'.gpa=this.value"></div>'
+      + '</div></div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">🎓</div><h2>ข้อมูลทางการศึกษา <small>Education Background</small></h2></div>'
+    + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">กรอกเฉพาะระดับที่สำเร็จการศึกษา เว้นว่างระดับที่ไม่มี</p>'+rows+'</div>';
+}
+function buildStep3(){
+  var blocks = F.works.map(function(w,i){
+    return '<div class="work-block"><div class="work-block-num">ที่ทำงาน '+(i+1)+' / Company '+(i+1)+'</div>'
+      + '<div class="form-grid g3" style="margin-top:8px">'
+      + '<div class="form-group"><label><span class="th">บริษัท</span> <span class="en">Company</span></label><input value="'+val(w.company)+'" oninput="F.works['+i+'].company=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ตำแหน่ง</span> <span class="en">Position</span></label><input value="'+val(w.position)+'" oninput="F.works['+i+'].position=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">เงินเดือน</span> <span class="en">Salary</span></label><input value="'+val(w.salary)+'" oninput="F.works['+i+'].salary=this.value"></div></div>'
+      + '<div class="form-grid g2" style="margin-top:8px">'
+      + '<div class="form-group"><label><span class="th">จาก</span> <span class="en">From</span></label><input type="month" value="'+val(w.from)+'" oninput="F.works['+i+'].from=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ถึง</span> <span class="en">To</span></label><input type="month" value="'+val(w.to)+'" oninput="F.works['+i+'].to=this.value"></div></div>'
+      + '<div class="form-group" style="margin-top:8px"><label><span class="th">ลักษณะงาน</span> <span class="en">Accountability</span></label><input value="'+val(w.acc)+'" oninput="F.works['+i+'].acc=this.value"></div>'
+      + '<div class="form-group" style="margin-top:8px"><label><span class="th">สาเหตุการลาออก</span> <span class="en">Reason for Leaving</span></label><input value="'+val(w.reason)+'" oninput="F.works['+i+'].reason=this.value"></div></div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">🏢</div><h2>ประวัติการทำงาน <small>Work Experience</small></h2></div>'
+    + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">เรียงจากที่ทำงานล่าสุด เว้นว่างหากไม่มีประวัติการทำงาน</p>'+blocks+'</div>';
+}
+function buildStep4(){
+  var comp = F.compSkills.map(function(s,i){
+    return '<div class="form-group"><label><span class="th">โปรแกรมที่ '+(i+1)+'</span> <span class="en">Program</span></label><input value="'+val(s)+'" placeholder="เช่น MS Office, AutoCAD, SAP" oninput="F.compSkills['+i+']=this.value"></div>';
+  }).join('');
+  var langs = F.langSkills.map(function(l,i){
+    var lv = ['ดีมาก / Excellent','ดี / Good','พอใช้ / Fair','เล็กน้อย / Basic'].map(function(o){
+      return '<option'+(l.level===o?' selected':'')+'>'+o+'</option>';
+    }).join('');
+    return '<div class="form-grid g2" style="margin-bottom:8px">'
+      + '<div class="form-group"><label><span class="th">ภาษาที่ '+(i+1)+'</span> <span class="en">Language</span></label><input value="'+val(l.lang)+'" placeholder="เช่น อังกฤษ" oninput="F.langSkills['+i+'].lang=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ระดับ</span> <span class="en">Level</span></label><select onchange="F.langSkills['+i+'].level=this.value"><option value="">- เลือก -</option>'+lv+'</select></div></div>';
+  }).join('');
+  var known = F.known.map(function(kn,i){
+    return '<div class="form-grid g2" style="margin-bottom:8px">'
+      + '<div class="form-group"><label><span class="th">ชื่อ-นามสกุล '+(i+1)+'</span></label><input value="'+val(kn.name)+'" oninput="F.known['+i+'].name=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ความสัมพันธ์</span></label><input value="'+val(kn.rel)+'" oninput="F.known['+i+'].rel=this.value"></div></div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">💻</div><h2>ทักษะ และข้อมูลเพิ่มเติม <small>Skills &amp; Additional Information</small></h2></div>'
+    + '<div class="section-label">ความสามารถทางคอมพิวเตอร์ Computer Skills</div><div class="form-grid g3">'+comp+'</div>'
+    + '<div class="section-label" style="margin-top:16px">ความสามารถทางด้านภาษา Language Skills</div>'+langs
+    + '<div class="section-label" style="margin-top:16px">บุคคลที่ติดต่อได้กรณีฉุกเฉิน Emergency Contact</div>'
+    + '<div class="form-grid g2">'+fld('ชื่อ-นามสกุล','Name - Surname','emgName','text',F.emgName,'')+fld('โทรศัพท์','Telephone','emgPhone','tel',F.emgPhone,'')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:8px">'+fld('ที่อยู่','Address','emgAddr','text',F.emgAddr,'')+fld('ความสัมพันธ์','Relationship','emgRel','text',F.emgRel,'เช่น บิดา มารดา')+'</div>'
+    + '<div class="section-label" style="margin-top:16px">บุคคลที่รู้จักหรือร่วมงานในบริษัท Known Within Company</div>'+known+'</div>';
+}
+function buildStep5(){
+  var rows = PDPA_ITEMS.map(function(item,idx){
+    var yOn = F.pdpa[item.k]===true ? ' on':'';
+    var nOn = F.pdpa[item.k]===false ? ' on':'';
+    return '<div class="pdpa-item"><p><strong>'+(idx+1)+'.</strong> '+item.t+'</p><div class="pdpa-btns">'
+      + '<button class="pdpa-btn yes'+yOn+'" onclick="F.pdpa.'+item.k+'=true;render()">☑ ยินยอม / Consent</button>'
+      + '<button class="pdpa-btn no'+nOn+'" onclick="F.pdpa.'+item.k+'=false;render()">☒ ไม่ยินยอม / Not Consent</button>'
+      + '</div></div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">🔒</div><h2>หนังสือขอความยินยอม PDPA <small>Personal Data Consent</small></h2></div>'
+    + '<div class="alert alert-info" style="font-size:12px;line-height:1.7">ด้วยพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) มีความประสงค์ขอความยินยอมเก็บรวบรวมข้อมูลส่วนบุคคลสำหรับผู้สมัครงาน เพื่อนำไปใช้ประกอบการพิจารณาในกระบวนการสรรหาและว่าจ้าง</div>'
+    + '<p style="font-size:13px;font-weight:600;margin-bottom:10px">ข้าพเจ้า '+esc(F.firstName)+' '+esc(F.lastName)+' ขอให้ความยินยอมในการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคล ดังนี้</p>'
+    + rows
+    + '<div class="alert alert-warn" style="margin-top:12px;font-size:12px"><strong>หมายเหตุ:</strong> กรณีที่ท่านไม่ให้ความยินยอม บริษัทอาจไม่สามารถดำเนินการในกระบวนการคัดเลือกบุคลากรได้</div>'
+    + '<div class="check-row" onclick="toggleAgree(event)"><input type="checkbox" id="chkAgreed" '+(F.agreed?'checked':'')+' onclick="event.stopPropagation();F.agreed=this.checked;clearErr(\'agreed\')">'
+    + '<div style="font-size:12px;line-height:1.7;color:var(--muted)"><strong style="color:var(--text)">ข้าพเจ้าขอรับรองว่า</strong> ข้อความทั้งหมดที่กรอกลงในใบสมัครเป็นความจริงทั้งหมด หากพบว่าข้อมูลใดๆ เป็นความเท็จ ข้าพเจ้ายินดีให้นายจ้างเลิกจ้างได้โดยไม่ต้องบอกกล่าวล่วงหน้า และไม่ต้องจ่ายค่าชดเชยใดๆ ทั้งสิ้น<br><em>I hereby certify that the information contained in this application is true and correct.</em></div></div>'
+    + '<span class="err-msg" id="err_agreed"></span></div>';
+}
+function toggleAgree(ev){
+  F.agreed = !F.agreed;
+  var c=$('chkAgreed'); if(c) c.checked=F.agreed;
+  clearErr('agreed');
+}
+function handlePhoto(inp){
+  var f = inp.files[0]; if(!f) return;
+  var r = new FileReader();
+  r.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var maxW = 240;
+      var sc = Math.min(1, maxW/img.width);
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(img.width*sc); cv.height = Math.round(img.height*sc);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      photoDataURL = cv.toDataURL('image/jpeg',0.78);
+      render();
+    };
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+
+// ─── Validation & submit ─────────────────────────────────────────────
+function validate(){
+  var ok = true;
+  if(cur===0){
+    if(!F.pos1){showErr('pos1','กรุณาระบุตำแหน่ง');ok=false;}
+    if(!F.salary){showErr('salary','กรุณาระบุเงินเดือนที่คาดหวัง');ok=false;}
+  }
+  if(cur===1){
+    if(!F.firstName){showErr('firstName','กรุณากรอกชื่อ');ok=false;}
+    if(!F.lastName){showErr('lastName','กรุณากรอกนามสกุล');ok=false;}
+    if(!F.phone){showErr('phone','กรุณากรอกเบอร์โทร');ok=false;}
+    if(!F.email){showErr('email','กรุณากรอกอีเมล');ok=false;}
+    if(!F.idCard){showErr('idCard','กรุณากรอกเลขบัตร');ok=false;}
+    else if(!/^\d[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d$/.test(F.idCard.trim())){showErr('idCard','รูปแบบเลขบัตรไม่ถูกต้อง (13 หลัก)');ok=false;}
+  }
+  if(cur===5){
+    if(!F.agreed){showErr('agreed','กรุณายืนยันความถูกต้องของข้อมูล');ok=false;}
+  }
+  return ok;
+}
+function nextStep(){
+  if(!validate()) return;
+  if(cur < STEPS.length-1){ cur++; render(); window.scrollTo(0,0); }
+  else submitForm();
+}
+function prevStep(){ if(cur>0){ cur--; render(); window.scrollTo(0,0); } }
+function goStep(i){ if(i<cur){ cur=i; render(); window.scrollTo(0,0); } }
+function submitForm(){
+  if(!validate()) return;
+  var bn=$('btnNext'); if(bn){bn.disabled=true;bn.textContent='กำลังส่ง...';}
+  var record = {
+    id:'', ts: new Date().toISOString(), status:'ใหม่', note:'',
+    data: JSON.parse(JSON.stringify(F)), photo: photoDataURL
+  };
+  apiSubmit(record).then(function(rec){
+    lastSubmitted = rec;
+    view='success'; render(); window.scrollTo(0,0);
+  }).catch(function(err){
+    alert('ส่งใบสมัครไม่สำเร็จ: '+err.message+'\nกรุณาลองใหม่อีกครั้ง');
+    if(bn){bn.disabled=false;bn.textContent='✓ ส่งใบสมัคร';}
+  });
+}
+
+// ─── HR mode ──────────────────────────────────────────────────────────
+function toggleHR(){
+  if(view==='dashboard'||view==='detail'||view==='login'){ view='apply'; render(); return; }
+  view = hrAuthed ? 'dashboard' : 'login';
+  if(view==='dashboard') loadDashboard(); else render();
+}
+function tryLogin(){
+  var p=$('hrPass');
+  if(p && p.value===CONFIG.HR_PASS){ hrAuthed=true; loadDashboard(); }
+  else { var e=$('loginErr'); if(e) e.textContent='รหัสไม่ถูกต้อง'; }
+}
+function loadDashboard(){
+  view='dashboard'; render();
+  apiList().then(function(arr){ records = arr||[]; render(); })
+    .catch(function(err){ records=[]; render(); alert('โหลดข้อมูลไม่สำเร็จ: '+err.message); });
+}
+function setFilter(s){ filterStatus = (filterStatus===s)?'':s; render(); }
+function filteredRecords(){
+  var q = searchText.trim().toLowerCase();
+  return records.filter(function(r){
+    if(filterStatus && r.status!==filterStatus) return false;
+    if(!q) return true;
+    var d=r.data||{};
+    var hay = [r.id, d.firstName, d.lastName, d.pos1, d.pos2, d.pos3, d.phone, d.email].join(' ').toLowerCase();
+    return hay.indexOf(q)>-1;
+  });
+}
+function changeStatus(id, st){
+  apiUpdate(id, st).then(function(){
+    records.forEach(function(r){ if(r.id===id) r.status=st; });
+    render();
+  }).catch(function(err){ alert('อัปเดตไม่สำเร็จ: '+err.message); });
+}
+function openDetail(id){
+  currentRec = records.filter(function(r){return r.id===id;})[0] || null;
+  if(currentRec){ view='detail'; render(); window.scrollTo(0,0); }
+}
+function saveNote(){
+  if(!currentRec) return;
+  var n=$('noteArea'); if(!n) return;
+  apiUpdate(currentRec.id, currentRec.status, n.value).then(function(){
+    currentRec.note = n.value;
+    var b=$('noteSaved'); if(b){b.style.display='inline';setTimeout(function(){b.style.display='none';},2000);}
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+
+// ─── Views ────────────────────────────────────────────────────────────
+function viewLogin(){
+  return '<div class="login-box"><div style="font-size:28px;margin-bottom:8px">🔐</div>'
+    + '<h2 style="font-size:16px;color:var(--primary);margin-bottom:4px">HR Dashboard</h2>'
+    + '<p style="font-size:12px;color:var(--muted);margin-bottom:18px">สำหรับเจ้าหน้าที่ฝ่ายทรัพยากรบุคคลเท่านั้น</p>'
+    + '<input type="password" id="hrPass" placeholder="รหัสผ่าน" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:6px" onkeydown="if(event.key===\'Enter\')tryLogin()">'
+    + '<div class="err-msg" id="loginErr" style="margin-bottom:10px;min-height:16px"></div>'
+    + '<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="tryLogin()">เข้าสู่ระบบ</button>'
+    + '<p style="font-size:10px;color:var(--muted);margin-top:14px">การเข้าถึงข้อมูลผู้สมัครอยู่ภายใต้นโยบายคุ้มครองข้อมูลส่วนบุคคล</p></div>';
+}
+function viewDashboard(){
+  var counts = {all: records.length};
+  STATUSES.forEach(function(s){ counts[s] = records.filter(function(r){return r.status===s;}).length; });
+  var statClass = {'ใหม่':'s-new','คัดกรอง':'s-screen','นัดสัมภาษณ์':'s-intv','ผ่าน':'s-pass','ไม่ผ่าน':'s-fail'};
+  var stats = '<div class="stat-card s-all'+(filterStatus===''?' on':'')+'" onclick="setFilter(\'\')"><div class="num">'+counts.all+'</div><div class="lbl">ผู้สมัครทั้งหมด</div></div>'
+    + STATUSES.map(function(s){
+        return '<div class="stat-card '+statClass[s]+(filterStatus===s?' on':'')+'" onclick="setFilter(\''+s+'\')"><div class="num">'+counts[s]+'</div><div class="lbl">'+s+'</div></div>';
+      }).join('');
+  var list = filteredRecords();
+  var rows = list.map(function(r){
+    var d=r.data||{};
+    var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    return '<tr>'
+      + '<td class="rec-no">'+esc(r.id)+'</td>'
+      + '<td><strong>'+esc(d.firstName)+' '+esc(d.lastName)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(d.phone||'')+'</span></td>'
+      + '<td>'+esc(d.pos1||'-')+'</td>'
+      + '<td style="font-size:12px">'+dateTH(r.ts)+'</td>'
+      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span></td>'
+      + '<td><select class="status-sel" onchange="changeStatus(\''+r.id+'\',this.value)">'+opts+'</select></td>'
+      + '<td style="white-space:nowrap"><button class="btn btn-sm btn-outline" onclick="openDetail(\''+r.id+'\')">ดูใบสมัคร</button></td>'
+      + '</tr>';
+  }).join('');
+  var table = list.length
+    ? '<table class="ats-table"><thead><tr><th>เลขรับ</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>วันที่สมัคร</th><th>สถานะ</th><th>เปลี่ยนสถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">'+(records.length?'ไม่พบผู้สมัครตามเงื่อนไขที่ค้นหา':'ยังไม่มีผู้สมัคร — เมื่อมีการส่งใบสมัครเข้ามา รายการจะแสดงที่นี่')+'</div>';
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">📋 ทะเบียนผู้สมัครงาน</h2>'
+    + '<div style="margin-left:auto;display:flex;gap:8px">'
+    + '<button class="btn btn-sm btn-accent" onclick="exportRegister()">📊 Export ทะเบียน Excel</button>'
+    + '<button class="btn btn-sm" onclick="loadDashboard()">↻ รีเฟรช</button>'
+    + '<button class="btn btn-sm" onclick="view=\'apply\';render()">← หน้าสมัครงาน</button></div></div>'
+    + (isDemo()?'<div class="alert alert-warn" style="font-size:12px">โหมดทดลอง: ข้อมูลเก็บใน localStorage ของเครื่องนี้เท่านั้น — ตั้งค่า CONFIG.API_URL เพื่อเชื่อมฐานข้อมูลกลาง</div>':'')
+    + '<div class="stats-row">'+stats+'</div>'
+    + '<div class="search-bar"><input placeholder="🔍 ค้นหา ชื่อ / เลขรับ / ตำแหน่ง / เบอร์โทร" value="'+esc(searchText)+'" oninput="searchText=this.value;renderTableOnly()">'
+    + '</div><div id="atsTableWrap">'+table+'</div>';
+}
+function renderTableOnly(){
+  var w=$('atsTableWrap'); if(!w) return;
+  var tmp = viewDashboard();
+  var div = document.createElement('div'); div.innerHTML = tmp;
+  var nw = div.querySelector('#atsTableWrap');
+  if(nw) w.innerHTML = nw.innerHTML;
+}
+function viewDetail(){
+  if(!currentRec) return '<div class="empty-state">ไม่พบข้อมูล</div>';
+  var r=currentRec, d=r.data||{};
+  var eduRows = EDU_LEVELS.map(function(lv){
+    var e=(d.edu||{})[lv.k]||{};
+    if(!e.ins && !e.field) return '';
+    return '<tr><td>'+lv.l+'</td><td>'+esc(e.ins)+'</td><td>'+esc(e.field)+'</td><td>'+esc(e.year)+'</td><td>'+esc(e.gpa)+'</td></tr>';
+  }).join('');
+  var workRows = (d.works||[]).filter(function(w){return w.company;}).map(function(w){
+    return '<tr><td>'+esc(w.company)+'</td><td>'+esc(w.position)+'</td><td>'+monthTH(w.from)+' - '+monthTH(w.to)+'</td><td>'+esc(w.salary)+'</td><td>'+esc(w.reason)+'</td></tr>';
+  }).join('');
+  var pdpaSum = PDPA_ITEMS.map(function(it,i){
+    var v=(d.pdpa||{})[it.k];
+    return '<span class="status-pill '+(v===true?'st-ผ่าน':v===false?'st-ไม่ผ่าน':'st-คัดกรอง')+'" style="margin-right:6px">ข้อ '+(i+1)+': '+(v===true?'ยินยอม':v===false?'ไม่ยินยอม':'ไม่ระบุ')+'</span>';
+  }).join('');
+  var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+  return '<div class="toolbar">'
+    + '<button class="btn btn-sm" onclick="view=\'dashboard\';render()">← กลับทะเบียน</button>'
+    + '<div style="margin-left:auto;display:flex;gap:8px">'
+    + '<button class="btn btn-sm btn-outline" onclick="previewPrint(currentRec)">👁 ตัวอย่างเอกสาร</button>'
+    + '<button class="btn btn-sm btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button>'
+    + '<button class="btn btn-sm btn-accent" onclick="exportOne(currentRec)">📊 Excel</button></div></div>'
+    + '<div class="card"><div class="card-header"><div class="icon">👤</div><h2>'+esc(d.firstName)+' '+esc(d.lastName)+' <small class="rec-no" style="font-family:monospace">'+esc(r.id)+'</small></h2>'
+    + '<div style="margin-left:auto;display:flex;align-items:center;gap:8px"><span class="status-pill st-'+r.status+'">'+r.status+'</span>'
+    + '<select class="status-sel" onchange="changeStatus(currentRec.id,this.value);currentRec.status=this.value;render()">'+opts+'</select></div></div>'
+    + '<div style="display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:280px"><dl class="detail-grid">'
+    + '<dt>ตำแหน่งที่สมัคร</dt><dd>'+esc(d.pos1||'-')+(d.pos2?' / '+esc(d.pos2):'')+(d.pos3?' / '+esc(d.pos3):'')+'</dd>'
+    + '<dt>เงินเดือนที่คาดหวัง</dt><dd>'+esc(d.salary||'-')+' บาท</dd>'
+    + '<dt>วันเกิด</dt><dd>'+dateTH(d.dob)+'</dd>'
+    + '<dt>โทรศัพท์</dt><dd>'+esc(d.phone||'-')+'</dd>'
+    + '<dt>อีเมล</dt><dd>'+esc(d.email||'-')+'</dd>'
+    + '<dt>Line ID</dt><dd>'+esc(d.lineId||'-')+'</dd>'
+    + '<dt>สถานะทหาร</dt><dd>'+(milLabel(d.military)||'-')+'</dd>'
+    + '<dt>วันที่สมัคร</dt><dd>'+dateTH(r.ts)+'</dd>'
+    + '</dl></div>'
+    + (r.photo?'<div><img src="'+r.photo+'" style="width:110px;height:138px;object-fit:cover;border:1px solid var(--border);border-radius:4px"></div>':'')
+    + '</div>'
+    + (eduRows?'<div class="section-label">การศึกษา</div><table class="ats-table"><thead><tr><th>ระดับ</th><th>สถาบัน</th><th>สาขา</th><th>ปีจบ</th><th>GPA</th></tr></thead><tbody>'+eduRows+'</tbody></table>':'')
+    + (workRows?'<div class="section-label" style="margin-top:14px">ประวัติการทำงาน</div><table class="ats-table"><thead><tr><th>บริษัท</th><th>ตำแหน่ง</th><th>ช่วงเวลา</th><th>เงินเดือน</th><th>สาเหตุลาออก</th></tr></thead><tbody>'+workRows+'</tbody></table>':'')
+    + '<div class="section-label" style="margin-top:14px">ความยินยอม PDPA</div><div>'+pdpaSum+'</div>'
+    + '<div class="section-label" style="margin-top:14px">บันทึกของ HR</div>'
+    + '<textarea class="note-area" id="noteArea" placeholder="บันทึกผลสัมภาษณ์ ข้อสังเกต ฯลฯ">'+esc(r.note||'')+'</textarea>'
+    + '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveNote()">บันทึก</button> <span id="noteSaved" style="display:none;color:var(--success);font-size:12px">✓ บันทึกแล้ว</span></div>'
+    + '</div>';
+}
+function viewSuccess(){
+  var rec = lastSubmitted || {id:'-'};
+  var d = rec.data || F;
+  return '<div class="card success-screen"><div class="success-icon">✅</div>'
+    + '<h2 style="font-size:20px;font-weight:600;color:var(--success);margin-bottom:8px">ส่งใบสมัครเรียบร้อยแล้ว</h2>'
+    + '<p style="color:var(--muted);margin-bottom:4px">Application Submitted Successfully</p>'
+    + '<p style="font-size:13px;margin-bottom:24px">เลขรับเอกสารของคุณ: <strong style="font-family:monospace;color:var(--primary);font-size:15px">'+esc(rec.id)+'</strong><br><span style="font-size:11px;color:var(--muted)">กรุณาบันทึกเลขนี้ไว้อ้างอิงในการติดตามผล</span></p>'
+    + '<div style="display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px 24px;text-align:left;margin-bottom:24px">'
+    + '<table style="font-size:13px;border-collapse:collapse">'
+    + '<tr><td style="color:var(--muted);padding:3px 16px 3px 0">ชื่อผู้สมัคร</td><td style="font-weight:600">'+esc(d.firstName)+' '+esc(d.lastName)+'</td></tr>'
+    + '<tr><td style="color:var(--muted);padding:3px 16px 3px 0">ตำแหน่งที่สมัคร</td><td style="font-weight:600">'+esc(d.pos1||'-')+'</td></tr>'
+    + '<tr><td style="color:var(--muted);padding:3px 16px 3px 0">วันที่สมัคร</td><td>'+todayTH()+'</td></tr>'
+    + '</table></div>'
+    + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
+    + '<button class="btn btn-outline" onclick="printRecord(lastSubmitted)">🖨 พิมพ์ / บันทึก PDF</button>'
+    + '<button class="btn" onclick="startNew()">สมัครรายการใหม่</button></div>'
+    + '<p style="font-size:11px;color:var(--muted);margin-top:20px">ฝ่ายทรัพยากรบุคคลจะติดต่อกลับตามเบอร์โทรศัพท์หรืออีเมลที่ระบุไว้</p></div>';
+}
+function startNew(){
+  F = blankF(); photoDataURL=null; cur=0; lastSubmitted=null; view='apply'; render(); window.scrollTo(0,0);
+}
+
+// ─── Print document: AKR-OHR-FM-001 replica + ISO footer ทุกหน้า ───────
+function ppFooter(pageNo, recId){
+  return '<div class="pp-footer">'
+    + '<span><b>'+CONFIG.DOC.no+' Rev. '+CONFIG.DOC.rev+'</b></span>'
+    + '<span>Effective Date: '+CONFIG.DOC.effective+'</span>'
+    + '<span>เลขรับ: <b>'+esc(recId||'-')+'</b></span>'
+    + '<span>Page '+pageNo+' of '+CONFIG.DOC.pages+'</span>'
+    + '</div>';
+}
+function ppHead(){
+  return '<div class="pp-head"><img src="'+LOGO_SRC+'" alt="Akara Resources"><span class="mine">Chatree Gold Mine</span></div>';
+}
+function ck(b){ return '<span class="ck">'+(b?'☑':'☐')+'</span>'; }
+function buildPrintDoc(rec){
+  var d = rec.data || {};
+  var recId = rec.id || '';
+  var photo = rec.photo ? '<img src="'+rec.photo+'">' : 'รูปถ่าย<br>Photo';
+  var applyDate = dateTH(rec.ts) || dateTH(new Date().toISOString());
+
+  // ----- PAGE 1 -----
+  var eduRows = EDU_LEVELS.map(function(lv){
+    var e=(d.edu||{})[lv.k]||{};
+    return '<tr><td>'+lv.l+' '+lv.e+'</td><td>'+esc(e.ins)+'</td><td>'+esc(e.field)+'</td><td style="text-align:center">'+esc(e.year)+'</td><td style="text-align:center">'+esc(e.gpa)+'</td></tr>';
+  }).join('');
+  var p1 = '<div class="pp">'+ppHead()
+    + '<table style="border:none"><tr>'
+    + '<td style="width:75%;padding:0;border:none"><div class="pp-title">ใบสมัครงาน Application Form</div>'
+    + '<div class="pp-commit">We commit to provide equal opportunities and have a right to be treated with dignity for every person - without regard to race, colour, religion, gender, age, national origin, language or any other status - in every phase of the employment program.</div></td>'
+    + '<td style="width:25%;border:none;padding:0 0 0 3mm"><div class="pp-photo" style="margin:0 auto;text-align:center">'+photo+'</div></td>'
+    + '</tr></table>'
+    + '<table style="margin-top:2mm">'
+    + '<tr><td class="lb" colspan="2">ตำแหน่งที่ต้องการสมัคร เรียงตามลำดับ 1-3 (Position Applied 1-3)</td></tr>'
+    + '<tr><td>1. '+esc(d.pos1)+'</td><td class="lb" style="width:30%">เงินเดือนที่คาดหวัง Expected Salary</td></tr>'
+    + '<tr><td>2. '+esc(d.pos2)+'</td><td rowspan="2" style="text-align:center;vertical-align:middle">'+esc(d.salary)+(d.salary?' บาท':'')+'</td></tr>'
+    + '<tr><td>3. '+esc(d.pos3)+'</td></tr></table>'
+    + '<div class="pp-sec">ข้อมูลส่วนตัว Personal Information</div>'
+    + '<table>'
+    + '<tr><td class="lb" style="width:20%">ชื่อ - นามสกุล<br>Name - Surname</td><td style="width:40%">'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+    + '<td class="lb" style="width:18%">วัน เดือน ปี เกิด<br>Date of Birth</td><td>'+dateTH(d.dob)+'</td></tr>'
+    + '<tr><td class="lb">ที่อยู่ตามทะเบียนบ้าน<br>House Registration Address</td><td colspan="3">'+esc(d.houseAddr)+'</td></tr>'
+    + '<tr><td class="lb">ที่อยู่ปัจจุบัน<br>Present Address</td><td colspan="3">'+(esc(d.presentAddr)||'ตามที่อยู่ทะเบียนบ้าน / Same as above')+'</td></tr>'
+    + '<tr><td class="lb">โทรศัพท์ที่สะดวก<br>Telephone</td><td>'+esc(d.phone)+'</td><td class="lb">อีเมล<br>Email Address</td><td>'+esc(d.email)+'</td></tr>'
+    + '<tr><td class="lb">เลขประจำตัวประชาชน<br>ID Card Number</td><td>'+esc(d.idCard)+'</td><td class="lb">วันหมดอายุ Expired Date</td><td>'+dateTH(d.idExpiry)+'&nbsp;&nbsp;&nbsp;<b>Line ID:</b> '+esc(d.lineId)+'</td></tr>'
+    + '</table>'
+    + '<table style="margin-top:1.5mm"><tr><td class="lb" colspan="4">สถานะทางทหาร Military Service</td></tr><tr>'
+    + MIL_OPTS.map(function(o){return '<td style="width:25%">'+ck(d.military===o.v)+' '+o.l+'<br><span class="sm" style="color:#555">'+o.e+'</span></td>';}).join('')
+    + '</tr></table>'
+    + '<div class="pp-sec">ข้อมูลทางการศึกษา Education Background</div>'
+    + '<table><tr class="lb"><th style="width:21%">ระดับการศึกษา<br>Education Levels</th><th style="width:31%">สถาบัน<br>Educational Institution</th><th style="width:24%">สาขาวิชา<br>Field of Study</th><th style="width:12%">ปีที่สำเร็จ<br>Grad. Year</th><th style="width:12%">เกรดเฉลี่ย<br>GPA</th></tr>'
+    + eduRows + '</table>'
+    + ppFooter(1, recId) + '</div>';
+
+  // ----- PAGE 2 -----
+  var workBlocks = (d.works||[]).slice(0,4).map(function(w){
+    return '<table style="margin-bottom:1.6mm">'
+      + '<tr><td class="lb" style="width:42%">บริษัท Company</td><td class="lb" style="width:38%">ตำแหน่ง Position</td><td class="lb">เงินเดือน Salary</td></tr>'
+      + '<tr><td>'+esc(w.company)+'</td><td>'+esc(w.position)+'</td><td>'+esc(w.salary)+'</td></tr>'
+      + '<tr><td class="lb">ระยะเวลา Duration</td><td class="lb" colspan="2">ลักษณะงาน Accountability</td></tr>'
+      + '<tr><td>จาก '+monthTH(w.from)+' &nbsp;ถึง '+monthTH(w.to)+'</td><td rowspan="3" colspan="2">'+esc(w.acc)+'</td></tr>'
+      + '<tr><td class="lb">สาเหตุการลาออก Reason for Leaving</td></tr>'
+      + '<tr><td>'+esc(w.reason)+'</td></tr></table>';
+  }).join('');
+  var langTxt = (d.langSkills||[]).filter(function(l){return l.lang;}).map(function(l){return esc(l.lang)+(l.level?' ('+esc(l.level)+')':'');}).join(', ');
+  var compTxt = (d.compSkills||[]).filter(Boolean).map(esc).join(', ');
+  var kn = d.known||[{},{}];
+  var p2 = '<div class="pp">'+ppHead()
+    + '<div class="pp-title">ใบสมัครงาน Application Form</div>'
+    + '<div class="pp-sec" style="margin-top:1.5mm">ประวัติการทำงาน Work Experience</div>'
+    + workBlocks
+    + '<table style="margin-bottom:1.6mm"><tr><td class="lb" style="width:50%">ความสามารถทางคอมพิวเตอร์ Computer Skills</td><td class="lb">ความสามารถทางด้านภาษา Language Skills</td></tr>'
+    + '<tr><td>โปรแกรม Program: '+compTxt+'</td><td>ภาษา Language: '+langTxt+'</td></tr></table>'
+    + '<table style="margin-bottom:1.6mm"><tr><td class="lb" colspan="4">บุคคลที่สามารถติดต่อได้ในกรณีฉุกเฉิน In case of emergency, please notify the contact person.</td></tr>'
+    + '<tr><td class="lb" style="width:18%">ชื่อ - สกุล Name</td><td style="width:38%">'+esc(d.emgName)+'</td><td class="lb" style="width:14%">โทรศัพท์</td><td>'+esc(d.emgPhone)+'</td></tr>'
+    + '<tr><td class="lb">ที่อยู่ Address</td><td>'+esc(d.emgAddr)+'</td><td class="lb">ความสัมพันธ์</td><td>'+esc(d.emgRel)+'</td></tr></table>'
+    + '<table style="margin-bottom:1.6mm"><tr><td class="lb" colspan="2">บุคคลที่ท่านรู้จักหรือร่วมงานด้วยภายในบริษัท People you know or have previously worked within the company.</td></tr>'
+    + '<tr><td style="width:62%">1. '+esc(kn[0]&&kn[0].name)+'</td><td>ความสัมพันธ์ Relationship: '+esc(kn[0]&&kn[0].rel)+'</td></tr>'
+    + '<tr><td>2. '+esc(kn[1]&&kn[1].name)+'</td><td>ความสัมพันธ์ Relationship: '+esc(kn[1]&&kn[1].rel)+'</td></tr></table>'
+    + '<table><tr><td class="sm" style="width:64%">ข้าพเจ้าขอรับรองว่า ข้อความทั้งหมดที่กรอกลงในใบสมัครเป็นความจริงทั้งหมด หากพบว่าข้อมูลใด ๆ เป็นความเท็จ ข้าพเจ้ายินดีให้นายจ้างเลิกจ้างได้ โดยไม่ต้องบอกกล่าวล่วงหน้า และไม่ต้องจ่ายค่าชดเชยใด ๆ ทั้งสิ้น<br><br>'
+    + 'I hereby certify that the information contained in this application is true and correct. I understand that falsification or omission of any facts in said document will be cause for immediate termination of employment without notice, and the terminated employee will not receive any severance pay entitlements.</td>'
+    + '<td>ลงชื่อผู้สมัคร Signature<br><br><br>....................................................<br>('+esc(d.firstName)+' '+esc(d.lastName)+')<br>วันที่ Date: '+applyDate+'<br><span class="sm" style="color:#555">ยื่นผ่านระบบรับสมัครออนไลน์ '+(d.agreed?'— ยืนยันข้อมูลแล้ว':'')+'<br>ลงนามรับรองอีกครั้งในวันสัมภาษณ์</span></td></tr></table>'
+    + ppFooter(2, recId) + '</div>';
+
+  // ----- PAGE 3 : PDPA -----
+  var pdpaRows = PDPA_ITEMS.map(function(it,i){
+    var v=(d.pdpa||{})[it.k];
+    return '<tr><td style="text-align:center;width:8%">'+(i+1)+'</td><td class="sm">'+it.t+'</td>'
+      + '<td style="text-align:center;width:11%">'+ck(v===true)+'</td><td style="text-align:center;width:11%">'+ck(v===false)+'</td></tr>';
+  }).join('');
+  var p3 = '<div class="pp">'+ppHead()
+    + '<div class="pp-title">ใบสมัครงาน Application Form</div>'
+    + '<p style="text-align:center;font-weight:700;margin:2.5mm 0 2mm">หนังสือขอความยินยอมในการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคล สำหรับผู้สมัครงาน</p>'
+    + '<p class="sm" style="text-indent:8mm;margin-bottom:1.5mm">ด้วยพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 เป็นกฎหมายที่มีเจตนารมณ์ปกป้องการล่วงละเมิดและคุ้มครองสิทธิความเป็นส่วนตัวของข้อมูลส่วนบุคคล ได้กำหนดหลักการในการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคลจะต้องขอความยินยอมพร้อมทั้งแจ้งวัตถุประสงค์ให้เจ้าของข้อมูลส่วนบุคคลทราบโดยชัดแจ้ง จะกระทำเป็นหนังสือผ่านระบบอิเล็กทรอนิกส์ก็ได้</p>'
+    + '<p class="sm" style="text-indent:8mm;margin-bottom:2mm">โดยหนังสือฉบับนี้ บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) มีความประสงค์ขอความยินยอมเก็บรวบรวมข้อมูลส่วนบุคคลสำหรับผู้สมัครงานกับบริษัท เพื่อนำไปใช้ประกอบการพิจารณาในกระบวนการสรรหาและว่าจ้าง</p>'
+    + '<p style="margin-bottom:2mm">ข้าพเจ้า (ชื่อ-นามสกุล) <b>'+esc(d.firstName)+' '+esc(d.lastName)+'</b> &nbsp;&nbsp;เลขประจำตัวประชาชน <b>'+esc(d.idCard)+'</b></p>'
+    + '<p style="margin-bottom:1.5mm">ข้าพเจ้าขอให้ความยินยอมในการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้า ดังนี้</p>'
+    + '<table><tr class="lb" style="text-align:center"><th>ลำดับ</th><th>การเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคล</th><th>ยินยอม</th><th>ไม่ยินยอม</th></tr>'
+    + pdpaRows + '</table>'
+    + '<p class="sm" style="margin-top:2mm"><u>หมายเหตุ</u> สำหรับในกรณีที่ท่านไม่ให้ความยินยอม บริษัทอาจไม่สามารถดำเนินการในกระบวนการคัดเลือกบุคลากรตลอดจนการปฏิบัติตามภาระข้อผูกพันที่บริษัทมีต่อท่าน หรือตามที่บริษัทวางแผนว่าจะเข้าทำสัญญาว่าจ้างกับท่านได้</p>'
+    + '<p class="sm" style="text-indent:8mm;margin-top:1.5mm">ในการนี้ ข้าพเจ้าได้อ่านและทำความเข้าใจ "ประกาศการคุ้มครองข้อมูลส่วนบุคคลสำหรับผู้สมัครงาน" ของบริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) เรียบร้อยแล้ว จึงให้ความยินยอมผ่านระบบอิเล็กทรอนิกส์ไว้เป็นหลักฐาน</p>'
+    + '<p style="text-align:center;margin-top:6mm">('+esc(d.firstName)+' '+esc(d.lastName)+')<br>วันที่ '+applyDate+' — ยืนยันผ่านระบบรับสมัครออนไลน์<br><span class="sm" style="color:#555">เลขรับเอกสาร '+esc(recId)+'</span></p>'
+    + ppFooter(3, recId) + '</div>';
+
+  return p1 + p2 + p3;
+}
+function printRecord(rec){
+  if(!rec){ alert('ไม่พบข้อมูลสำหรับพิมพ์'); return; }
+  var pa = $('printArea');
+  pa.innerHTML = buildPrintDoc(rec);
+  document.body.classList.remove('preview-mode');
+  document.body.classList.add('printing');
+  setTimeout(function(){
+    window.print();
+    document.body.classList.remove('printing');
+  }, 120);
+}
+function previewPrint(rec){
+  if(!rec) return;
+  var pa = $('printArea');
+  if(document.body.classList.contains('preview-mode')){
+    document.body.classList.remove('preview-mode'); pa.innerHTML=''; return;
+  }
+  pa.innerHTML = '<div style="text-align:center;padding:6mm 0"><button class="btn btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button> <button class="btn" onclick="previewPrint(currentRec)">✕ ปิดตัวอย่าง</button></div>' + buildPrintDoc(rec);
+  document.body.classList.add('preview-mode');
+  pa.scrollIntoView({behavior:'smooth'});
+}
+
+// ─── Excel exports ────────────────────────────────────────────────────
+function exportRegister(){
+  if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ กรุณาเปิดผ่านอินเทอร์เน็ต'); return; }
+  var wb = XLSX.utils.book_new();
+  var rows = [['เลขรับ','วันที่สมัคร','ชื่อ-นามสกุล','ตำแหน่ง 1','ตำแหน่ง 2','เงินเดือนคาดหวัง','โทรศัพท์','อีเมล','สถานะ','บันทึก HR']];
+  records.forEach(function(r){
+    var d=r.data||{};
+    rows.push([r.id, dateTH(r.ts), (d.firstName||'')+' '+(d.lastName||''), d.pos1||'', d.pos2||'', d.salary||'', d.phone||'', d.email||'', r.status||'', r.note||'']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:15},{wch:12},{wch:25},{wch:20},{wch:20},{wch:14},{wch:14},{wch:26},{wch:12},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, 'ทะเบียนผู้สมัคร');
+  XLSX.writeFile(wb, 'ApplicantRegister_'+CONFIG.DOC.no+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+function exportOne(rec){
+  if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ'); return; }
+  var d = rec.data||{};
+  var wb = XLSX.utils.book_new();
+  var rows = [
+    ['แบบฟอร์ม', CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev, 'Effective', CONFIG.DOC.effective],
+    ['เลขรับ', rec.id, 'วันที่สมัคร', dateTH(rec.ts), 'สถานะ', rec.status],
+    [],
+    ['ตำแหน่ง 1', d.pos1, 'ตำแหน่ง 2', d.pos2, 'ตำแหน่ง 3', d.pos3],
+    ['เงินเดือนที่คาดหวัง', d.salary],
+    ['ชื่อ-นามสกุล', (d.firstName||'')+' '+(d.lastName||''), 'วันเกิด', dateTH(d.dob)],
+    ['โทร', d.phone, 'อีเมล', d.email, 'Line', d.lineId],
+    ['เลขบัตร', d.idCard, 'หมดอายุ', dateTH(d.idExpiry), 'สถานะทหาร', milLabel(d.military)],
+    ['ที่อยู่ทะเบียนบ้าน', d.houseAddr],
+    ['ที่อยู่ปัจจุบัน', d.presentAddr],
+    [],
+    ['การศึกษา','สถาบัน','สาขา','ปีจบ','GPA']
+  ];
+  EDU_LEVELS.forEach(function(lv){
+    var e=(d.edu||{})[lv.k]||{};
+    if(e.ins||e.field) rows.push([lv.l, e.ins, e.field, e.year, e.gpa]);
+  });
+  rows.push([]);
+  rows.push(['บริษัท','ตำแหน่ง','เงินเดือน','จาก','ถึง','ลักษณะงาน','สาเหตุลาออก']);
+  (d.works||[]).filter(function(w){return w.company;}).forEach(function(w){
+    rows.push([w.company,w.position,w.salary,monthTH(w.from),monthTH(w.to),w.acc,w.reason]);
+  });
+  rows.push([]);
+  rows.push(['คอมพิวเตอร์', (d.compSkills||[]).filter(Boolean).join(', ')]);
+  rows.push(['ภาษา', (d.langSkills||[]).filter(function(l){return l.lang;}).map(function(l){return l.lang+' '+(l.level||'');}).join(', ')]);
+  rows.push(['ฉุกเฉิน', d.emgName, d.emgPhone, d.emgAddr, d.emgRel]);
+  PDPA_ITEMS.forEach(function(it,i){
+    var v=(d.pdpa||{})[it.k];
+    rows.push(['PDPA ข้อ '+(i+1), v===true?'ยินยอม':v===false?'ไม่ยินยอม':'ไม่ระบุ']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:22},{wch:32},{wch:18},{wch:16},{wch:18},{wch:28},{wch:24}];
+  XLSX.utils.book_append_sheet(wb, ws, 'ใบสมัคร');
+  XLSX.writeFile(wb, 'JobApp_'+(rec.id||'')+'_'+(d.firstName||'')+'.xlsx');
+}
+
+// ─── Main render ──────────────────────────────────────────────────────
+function render(){
+  var c = $('appView');
+  var tag = $('modeTag');
+  var hl = $('hrLink');
+  document.querySelector('.container').classList.toggle('wide', view==='dashboard'||view==='detail');
+  if(tag) tag.innerHTML = (view==='dashboard'||view==='detail') ? '<span class="mode-tag" style="background:#fff;border-color:#fff">HR Mode</span>' : '';
+  if(hl) hl.textContent = (view==='dashboard'||view==='detail'||view==='login') ? '← หน้าสมัครงาน' : 'สำหรับเจ้าหน้าที่ HR';
+
+  if(view==='login'){ c.innerHTML = viewLogin(); var p=$('hrPass'); if(p)p.focus(); return; }
+  if(view==='dashboard'){ c.innerHTML = viewDashboard(); return; }
+  if(view==='detail'){ c.innerHTML = viewDetail(); return; }
+  if(view==='success'){ c.innerHTML = viewSuccess(); return; }
+
+  // apply mode
+  var stepper = '<div class="stepper">'+STEPS.map(function(s,i){
+    return '<div class="step-item '+(i<cur?'done':i===cur?'active':'')+'" onclick="goStep('+i+')"><div class="step-dot">'+(i<cur?'✓':(i+1))+'</div><div class="step-label">'+s+'</div></div>';
+  }).join('')+'</div>';
+  var builders=[buildStep0,buildStep1,buildStep2,buildStep3,buildStep4,buildStep5];
+  var body = builders[cur] ? builders[cur]() : '';
+  var nav = '<div class="nav-bar">'
+    + '<button class="btn btn-outline" id="btnPrev" onclick="prevStep()"'+(cur===0?' disabled':'')+'>← ย้อนกลับ</button>'
+    + '<span class="step-info">ขั้นตอนที่ '+(cur+1)+' / '+STEPS.length+'</span>'
+    + '<button class="btn '+(cur===STEPS.length-1?'btn-success':'btn-primary')+'" id="btnNext" onclick="nextStep()">'+(cur===STEPS.length-1?'✓ ส่งใบสมัคร':'ถัดไป →')+'</button>'
+    + '</div>';
+  c.innerHTML = stepper + body + nav;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────
+$('logoImg').src = LOGO_SRC;
+window.addEventListener('afterprint', function(){ document.body.classList.remove('printing'); });
+render();
+
+</script>
+</body>
+</html>
