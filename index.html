@@ -127,6 +127,50 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .search-bar input{flex:1;min-width:200px}
 .empty-state{text-align:center;padding:48px;color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:var(--radius)}
 .login-box{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:32px;box-shadow:var(--shadow);text-align:center}
+/* Home: job board */
+.home-hero{background:linear-gradient(120deg,var(--primary) 0%,#2a6cb5 100%);color:#fff;border-radius:10px;padding:34px 28px;margin-bottom:22px;box-shadow:var(--shadow)}
+.home-hero h1{font-size:24px;font-weight:700;margin-bottom:8px}
+.home-hero p{font-size:13px;opacity:.9;line-height:1.7}
+.job-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.job-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s}
+.job-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.job-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:6px}
+.job-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.job-qual{font-size:12px;color:var(--text);background:var(--bg);border-radius:5px;padding:7px 10px;line-height:1.6}
+/* HR sidebar layout */
+.hr-layout{display:flex;gap:18px;align-items:flex-start}
+.sidebar{width:210px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:420px;position:sticky;top:74px}
+.side-user{display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid var(--border)}
+.side-avatar{width:36px;height:36px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.side-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--text);margin-bottom:2px;transition:background .12s}
+.side-item:hover{background:var(--bg)}
+.side-item.on{background:var(--primary-light);color:var(--primary);font-weight:600}
+/* Appointments */
+.appt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.appt-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fafbfd}
+.appt-card.set{background:#f3faf6;border-color:#a8dcc0}
+.appt-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--primary)}
+.appt-body{font-size:12.5px;margin-top:8px;line-height:1.7}
+/* Activity log */
+.log-list{border-left:2px solid var(--primary-light);padding-left:14px;display:flex;flex-direction:column;gap:6px}
+.log-item{font-size:12px;display:flex;gap:10px;flex-wrap:wrap}
+.log-when{color:var(--muted);font-family:monospace;font-size:11px;white-space:nowrap}
+.log-by{color:var(--primary);font-weight:600;white-space:nowrap}
+/* Documents upload */
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.doc-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fafbfd}
+.doc-card-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--primary);margin-bottom:4px}
+.doc-chip{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:6px;text-decoration:none;color:var(--text)}
+.doc-chip.link:hover{border-color:var(--primary);background:var(--primary-light)}
+.doc-chip-icon{flex-shrink:0}
+.doc-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.doc-chip-size{color:var(--muted);font-size:10px;white-space:nowrap}
+.doc-chip-x{color:var(--danger);cursor:pointer;font-weight:700;padding:0 4px}
+.doc-add{display:block;text-align:center;border:1.5px dashed var(--border);border-radius:6px;padding:8px;font-size:12px;color:var(--primary);cursor:pointer;transition:all .15s;background:#fff}
+.doc-add:hover{border-color:var(--primary);background:var(--primary-light)}
+/* Toast */
+.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,12px);background:#1e2a3a;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:999;max-width:90vw}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 .detail-grid{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-size:13px}
 .detail-grid dt{color:var(--muted)}
 .detail-grid dd{font-weight:500}
@@ -167,6 +211,9 @@ body.preview-mode .pp{box-shadow:0 2px 12px rgba(0,0,0,.3)}
   .toolbar{gap:6px}
   .btn{padding:7px 12px;font-size:12px}
   .detail-grid{grid-template-columns:1fr}
+  .hr-layout{flex-direction:column}
+  .sidebar{width:100%;position:static;min-height:0}
+  .job-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -196,21 +243,49 @@ var LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEB
 // ════════════════════════════════════════════════════════════════════
 var CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbw_-fAqA-EyDfg-8ciksKFeTYOpmMiHvM2Na4jcW48OjOu57OOUNilBsa5eihL6CcKnIg/exec',                 // วาง URL ของ Google Apps Script Web App — เว้นว่าง = โหมดทดลอง (เก็บในเครื่อง)
-  HR_PASS: '117568',        // รหัสเข้า HR Dashboard (เปลี่ยนก่อนใช้งานจริง)
+  HR_USERS: [                  // บัญชีเจ้าหน้าที่ HR (เปลี่ยนรหัสก่อนใช้งานจริง)
+    { user:'amnaj',   name:'Amnaj.hr',   pass:'akr#01' },
+    { user:'hr02',    name:'Parinya.hr',   pass:'akr#02' },
+    { user:'hr03',    name:'Chalita.hr',   pass:'akr#03' },
+    { user:'hr04',    name:'Chayanee.hr',   pass:'akr#04' },
+    { user:'hr05',    name:'Gantida.hr',   pass:'akr#05' },
+    { user:'hr06',    name:'Kopbun.hr',   pass:'akr#06' }
+  ],
   DOC: { no:'AKR-OHR-FM-001', rev:'01', effective:'20/Jun/2025', pages:3 }
 };
 var STATUSES = ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
-var STEPS = ['ตำแหน่งงาน','ข้อมูลส่วนตัว','การศึกษา','ประวัติการทำงาน','ทักษะ & อื่นๆ','ความยินยอม PDPA'];
+var APPT_TYPES = [
+  { k:'interview', l:'นัดหมายสัมภาษณ์',        icon:'🗓' },
+  { k:'health',    l:'ตรวจสุขภาพก่อนเริ่มงาน', icon:'🏥' },
+  { k:'start',     l:'นัดหมายวันเริ่มงาน',      icon:'🤝' }
+];
+var STEPS = ['ตำแหน่งงาน','ข้อมูลส่วนตัว','การศึกษา','ประวัติการทำงาน','ทักษะ & อื่นๆ','เอกสารแนบ','ความยินยอม PDPA'];
+var DOC_TYPES = [
+  { k:'resume',   l:'Resume / ประวัติย่อ',          icon:'📄', hint:'PDF หรือรูปภาพ' },
+  { k:'idcard',   l:'สำเนาบัตรประชาชน',             icon:'🪪', hint:'พร้อมเซ็นรับรองสำเนาถูกต้อง' },
+  { k:'house',    l:'สำเนาทะเบียนบ้าน',              icon:'🏠', hint:'' },
+  { k:'edu',      l:'วุฒิการศึกษา / Transcript',     icon:'🎓', hint:'แนบได้หลายไฟล์' },
+  { k:'training', l:'ใบรับรองการฝึกอบรม',            icon:'📜', hint:'แนบได้หลายไฟล์' },
+  { k:'other',    l:'เอกสารอื่นๆ',                   icon:'📎', hint:'เช่น ใบขับขี่ ใบรับรองแพทย์' }
+];
+var DOC_MAX_FILE = 5 * 1024 * 1024;     // 5MB ต่อไฟล์ (PDF)
+var DOC_MAX_TOTAL = 15 * 1024 * 1024;   // รวมทุกไฟล์
 
-var view = 'apply';            // apply | success | login | dashboard | detail
+var view = 'home';             // home | apply | success | login | dashboard | detail
+var hrMenu = 'applicants';     // applicants | jobs | settings
 var cur = 0;
 var photoDataURL = null;
 var records = [];
+var jobs = [];
+var editingJob = null;
 var hrAuthed = false;
 var currentRec = null;
 var filterStatus = '';
 var searchText = '';
 var lastSubmitted = null;
+var session = null;            // {user, name, ts} — จำ login ใน localStorage
+try { session = JSON.parse(localStorage.getItem('akr_hr_session')||'null'); } catch(e){ session = null; }
+if (session) hrAuthed = true;
 
 var F;
 function blankF(){
@@ -229,6 +304,7 @@ function blankF(){
     emgName:'',emgPhone:'',emgAddr:'',emgRel:'',
     known:[{name:'',rel:''},{name:'',rel:''}],
     pdpa:{q1:null,q2:null,q3:null,q4:null},
+    docs:[],          // [{type,name,mime,size,dataURL}] — dataURL ถูกแปลงเป็นลิงก์ Drive เมื่อส่ง
     agreed:false
   };
 }
@@ -299,8 +375,15 @@ function apiSubmit(record){
   if(isDemo()){
     var arr = lsLoad();
     record.id = nextRecNo(arr);
+    // โหมดทดลอง: localStorage มี quota จำกัด — เก็บเฉพาะ metadata ของไฟล์
+    if(record.data && record.data.docs){
+      record.data.docs = record.data.docs.map(function(x){
+        return { type:x.type, name:x.name, mime:x.mime, size:x.size, demo:true };
+      });
+    }
     arr.unshift(record);
-    lsSave(arr);
+    try { lsSave(arr); }
+    catch(e){ arr.shift(); throw new Error('พื้นที่จัดเก็บของเบราว์เซอร์เต็ม (โหมดทดลอง)'); }
     return Promise.resolve(record);
   }
   return fetch(CONFIG.API_URL, {
@@ -318,19 +401,82 @@ function apiList(){
   return fetch(CONFIG.API_URL + '?action=list').then(function(r){return r.json();})
     .then(function(res){ if(!res.ok) throw new Error(res.error||'list failed'); return res.records; });
 }
-function apiUpdate(id, status, note){
+// fields: {status, note, appts, logEntry}
+function apiUpdate(id, fields){
   if(isDemo()){
     var arr = lsLoad();
-    arr.forEach(function(r){ if(r.id===id){ r.status=status; if(note!==undefined) r.note=note; } });
+    arr.forEach(function(r){
+      if(r.id===id){
+        if(fields.status!==undefined) r.status=fields.status;
+        if(fields.note!==undefined) r.note=fields.note;
+        if(fields.appts!==undefined) r.appts=fields.appts;
+        if(fields.logEntry){ r.log = r.log||[]; r.log.push(fields.logEntry); }
+      }
+    });
     lsSave(arr);
     return Promise.resolve(true);
   }
   return fetch(CONFIG.API_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'update', id:id, status:status, note:note})
+    body: JSON.stringify({action:'update', id:id, fields:fields})
   }).then(function(r){return r.json();}).then(function(res){
     if(!res.ok) throw new Error(res.error||'update failed');
+    return true;
+  });
+}
+function logEntry(action){
+  return { ts:new Date().toISOString(), by:(session&&session.name)||'-', action:action };
+}
+// ── Jobs (ตำแหน่งงานที่เปิดรับ) ──
+function jobsLoadLS(){ try{ return JSON.parse(localStorage.getItem('akr_ats_jobs')||'[]'); }catch(e){ return []; } }
+function jobsSaveLS(arr){ localStorage.setItem('akr_ats_jobs', JSON.stringify(arr)); }
+function nextJobNo(arr){
+  var max=0;
+  arr.forEach(function(j){
+    var n=parseInt(String(j.id||'').replace('JOB-',''),10);
+    if(n>max) max=n;
+  });
+  return 'JOB-'+('000'+(max+1)).slice(-3);
+}
+function apiJobs(){
+  if(isDemo()){ return Promise.resolve(jobsLoadLS()); }
+  return fetch(CONFIG.API_URL + '?action=jobs').then(function(r){return r.json();})
+    .then(function(res){ if(!res.ok) throw new Error(res.error||'jobs failed'); return res.jobs; });
+}
+function apiSaveJob(job){
+  if(isDemo()){
+    var arr = jobsLoadLS();
+    if(!job.id){ job.id = nextJobNo(arr); arr.unshift(job); }
+    else {
+      var found=false;
+      arr = arr.map(function(j){ if(j.id===job.id){found=true;return job;} return j; });
+      if(!found) arr.unshift(job);
+    }
+    jobsSaveLS(arr);
+    return Promise.resolve(job);
+  }
+  return fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'saveJob', job:job})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok) throw new Error(res.error||'save job failed');
+    job.id = res.id || job.id;
+    return job;
+  });
+}
+function apiDeleteJob(id){
+  if(isDemo()){
+    jobsSaveLS(jobsLoadLS().filter(function(j){return j.id!==id;}));
+    return Promise.resolve(true);
+  }
+  return fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'deleteJob', id:id})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok) throw new Error(res.error||'delete job failed');
     return true;
   });
 }
@@ -431,6 +577,80 @@ function buildStep4(){
     + '<div class="form-grid g2" style="margin-top:8px">'+fld('ที่อยู่','Address','emgAddr','text',F.emgAddr,'')+fld('ความสัมพันธ์','Relationship','emgRel','text',F.emgRel,'เช่น บิดา มารดา')+'</div>'
     + '<div class="section-label" style="margin-top:16px">บุคคลที่รู้จักหรือร่วมงานในบริษัท Known Within Company</div>'+known+'</div>';
 }
+// ─── Step 5: เอกสารแนบ ────────────────────────────────────────────────
+function fmtSize(b){
+  if(b>=1048576) return (b/1048576).toFixed(1)+' MB';
+  if(b>=1024) return Math.round(b/1024)+' KB';
+  return b+' B';
+}
+function docsOf(typeKey){ return F.docs.filter(function(x){return x.type===typeKey;}); }
+function docsTotal(){ return F.docs.reduce(function(s,x){return s+(x.size||0);},0); }
+function buildStepDocs(){
+  var total = docsTotal();
+  var cards = DOC_TYPES.map(function(t){
+    var files = docsOf(t.k);
+    var maxN = (t.k==='resume'||t.k==='idcard'||t.k==='house') ? 1 : 3;
+    var chips = files.map(function(f){
+      var gi = F.docs.indexOf(f);
+      return '<div class="doc-chip"><span class="doc-chip-icon">'+(f.mime==='application/pdf'?'📕':'🖼')+'</span>'
+        + '<span class="doc-chip-name">'+esc(f.name)+'</span>'
+        + '<span class="doc-chip-size">'+fmtSize(f.size)+'</span>'
+        + '<span class="doc-chip-x" onclick="removeDoc('+gi+')">✕</span></div>';
+    }).join('');
+    var canAdd = files.length < maxN;
+    return '<div class="doc-card"><div class="doc-card-head"><span>'+t.icon+' '+t.l+'</span>'
+      + '<span style="font-size:10px;color:var(--muted)">'+files.length+'/'+maxN+' ไฟล์</span></div>'
+      + (t.hint?'<div style="font-size:11px;color:var(--muted);margin-bottom:6px">'+t.hint+'</div>':'')
+      + chips
+      + (canAdd
+          ? '<label class="doc-add">＋ เลือกไฟล์ (PDF / JPG / PNG)<input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="display:none" onchange="handleDocFile(\''+t.k+'\',this)"></label>'
+          : '')
+      + '</div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">📎</div><h2>เอกสารประกอบการสมัคร <small>Supporting Documents</small></h2></div>'
+    + '<div class="alert alert-info" style="font-size:12px">แนบไฟล์ PDF หรือรูปถ่ายเอกสาร (รูปจะถูกย่อขนาดอัตโนมัติ) สูงสุด '+(DOC_MAX_FILE/1048576)+' MB ต่อไฟล์ รวมไม่เกิน '+(DOC_MAX_TOTAL/1048576)+' MB — ทุกรายการ<strong>ไม่บังคับ</strong> เอกสารที่ยังไม่สะดวกแนบ สามารถนำมายื่นในวันสัมภาษณ์ได้</div>'
+    + '<div class="doc-grid">'+cards+'</div>'
+    + '<div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:right">ขนาดรวมที่แนบแล้ว: <strong>'+fmtSize(total)+'</strong> / '+(DOC_MAX_TOTAL/1048576)+' MB</div></div>';
+}
+function handleDocFile(typeKey, inp){
+  var f = inp.files[0];
+  inp.value='';
+  if(!f) return;
+  var okTypes = ['application/pdf','image/jpeg','image/png'];
+  if(okTypes.indexOf(f.type)===-1){ alert('รองรับเฉพาะไฟล์ PDF, JPG, PNG'); return; }
+  if(f.size > DOC_MAX_FILE){ alert('ไฟล์ใหญ่เกิน '+(DOC_MAX_FILE/1048576)+' MB\nกรุณาย่อไฟล์หรือสแกนความละเอียดต่ำลง'); return; }
+  var finish = function(dataURL, size){
+    if(docsTotal() + size > DOC_MAX_TOTAL){ alert('ขนาดไฟล์รวมเกิน '+(DOC_MAX_TOTAL/1048576)+' MB กรุณาลบบางไฟล์ก่อน'); return; }
+    F.docs.push({ type:typeKey, name:f.name, mime:(dataURL.indexOf('image/jpeg')>-1&&f.type!=='application/pdf')?'image/jpeg':f.type, size:size, dataURL:dataURL });
+    render();
+  };
+  if(f.type==='application/pdf'){
+    var r = new FileReader();
+    r.onload = function(e){ finish(e.target.result, f.size); };
+    r.readAsDataURL(f);
+  } else {
+    // รูปภาพ: ย่อขนาดเพื่อประหยัดพื้นที่และเวลาอัปโหลด
+    var rd = new FileReader();
+    rd.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var maxW = 1600;
+        var sc = Math.min(1, maxW/img.width);
+        var cv = document.createElement('canvas');
+        cv.width = Math.round(img.width*sc); cv.height = Math.round(img.height*sc);
+        cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+        var out = cv.toDataURL('image/jpeg',0.8);
+        var size = Math.round((out.length - out.indexOf(',') - 1) * 3/4);
+        finish(out, size);
+      };
+      img.src = e.target.result;
+    };
+    rd.readAsDataURL(f);
+  }
+}
+function removeDoc(i){
+  if(i>=0 && i<F.docs.length){ F.docs.splice(i,1); render(); }
+}
 function buildStep5(){
   var rows = PDPA_ITEMS.map(function(item,idx){
     var yOn = F.pdpa[item.k]===true ? ' on':'';
@@ -488,7 +708,7 @@ function validate(){
     if(!F.idCard){showErr('idCard','กรุณากรอกเลขบัตร');ok=false;}
     else if(!/^\d[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d$/.test(F.idCard.trim())){showErr('idCard','รูปแบบเลขบัตรไม่ถูกต้อง (13 หลัก)');ok=false;}
   }
-  if(cur===5){
+  if(cur===STEPS.length-1){
     if(!F.agreed){showErr('agreed','กรุณายืนยันความถูกต้องของข้อมูล');ok=false;}
   }
   return ok;
@@ -505,6 +725,7 @@ function submitForm(){
   var bn=$('btnNext'); if(bn){bn.disabled=true;bn.textContent='กำลังส่ง...';}
   var record = {
     id:'', ts: new Date().toISOString(), status:'ใหม่', note:'',
+    appts:{}, log:[],
     data: JSON.parse(JSON.stringify(F)), photo: photoDataURL
   };
   apiSubmit(record).then(function(rec){
@@ -518,19 +739,41 @@ function submitForm(){
 
 // ─── HR mode ──────────────────────────────────────────────────────────
 function toggleHR(){
-  if(view==='dashboard'||view==='detail'||view==='login'){ view='apply'; render(); return; }
+  if(view==='dashboard'||view==='detail'||view==='login'){ view='home'; loadHome(); return; }
   view = hrAuthed ? 'dashboard' : 'login';
   if(view==='dashboard') loadDashboard(); else render();
 }
 function tryLogin(){
-  var p=$('hrPass');
-  if(p && p.value===CONFIG.HR_PASS){ hrAuthed=true; loadDashboard(); }
-  else { var e=$('loginErr'); if(e) e.textContent='รหัสไม่ถูกต้อง'; }
+  var u=$('hrUser'), p=$('hrPass');
+  if(!u||!p) return;
+  var acct = CONFIG.HR_USERS.filter(function(a){return a.user===u.value;})[0];
+  if(acct && p.value===acct.pass){
+    session = { user:acct.user, name:acct.name, ts:new Date().toISOString() };
+    if($('chkRemember') && $('chkRemember').checked){
+      localStorage.setItem('akr_hr_session', JSON.stringify(session));
+    }
+    hrAuthed = true;
+    loadDashboard();
+  } else {
+    var e=$('loginErr'); if(e) e.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+  }
+}
+function logout(){
+  if(!confirm('ลงชื่อออกจากระบบ HR?')) return;
+  session=null; hrAuthed=false;
+  localStorage.removeItem('akr_hr_session');
+  view='home'; loadHome();
 }
 function loadDashboard(){
   view='dashboard'; render();
-  apiList().then(function(arr){ records = arr||[]; render(); })
-    .catch(function(err){ records=[]; render(); alert('โหลดข้อมูลไม่สำเร็จ: '+err.message); });
+  Promise.all([apiList(), apiJobs()]).then(function(res){
+    records = res[0]||[]; jobs = res[1]||[]; render();
+  }).catch(function(err){ records=[]; render(); alert('โหลดข้อมูลไม่สำเร็จ: '+err.message); });
+}
+function loadHome(){
+  view='home'; render();
+  apiJobs().then(function(arr){ jobs=arr||[]; if(view==='home') render(); })
+    .catch(function(){ jobs=[]; if(view==='home') render(); });
 }
 function setFilter(s){ filterStatus = (filterStatus===s)?'':s; render(); }
 function filteredRecords(){
@@ -543,11 +786,27 @@ function filteredRecords(){
     return hay.indexOf(q)>-1;
   });
 }
-function changeStatus(id, st){
-  apiUpdate(id, st).then(function(){
-    records.forEach(function(r){ if(r.id===id) r.status=st; });
+function changeStatus(id, st, selEl){
+  var rec = records.filter(function(r){return r.id===id;})[0];
+  var old = rec ? rec.status : '?';
+  if(st===old) return;
+  var nm = rec && rec.data ? (rec.data.firstName+' '+rec.data.lastName) : id;
+  if(!confirm('ยืนยันเปลี่ยนสถานะของ "'+nm+'"\n\n  '+old+'  →  '+st+'\n\nผู้ดำเนินการ: '+((session&&session.name)||'-'))){
+    if(selEl) selEl.value = old;   // ยกเลิก → คืนค่าเดิม
+    return;
+  }
+  var entry = logEntry('เปลี่ยนสถานะ '+old+' → '+st);
+  apiUpdate(id, {status:st, logEntry:entry}).then(function(){
+    records.forEach(function(r){
+      if(r.id===id){ r.status=st; r.log=r.log||[]; r.log.push(entry); }
+    });
+    if(currentRec && currentRec.id===id){ currentRec.status=st; }
+    toast('เปลี่ยนสถานะเป็น "'+st+'" แล้ว — บันทึกโดย '+((session&&session.name)||'-'));
     render();
-  }).catch(function(err){ alert('อัปเดตไม่สำเร็จ: '+err.message); });
+  }).catch(function(err){
+    if(selEl) selEl.value = old;
+    alert('อัปเดตไม่สำเร็จ: '+err.message);
+  });
 }
 function openDetail(id){
   currentRec = records.filter(function(r){return r.id===id;})[0] || null;
@@ -556,23 +815,176 @@ function openDetail(id){
 function saveNote(){
   if(!currentRec) return;
   var n=$('noteArea'); if(!n) return;
-  apiUpdate(currentRec.id, currentRec.status, n.value).then(function(){
+  var entry = logEntry('บันทึกข้อความ HR');
+  apiUpdate(currentRec.id, {note:n.value, logEntry:entry}).then(function(){
     currentRec.note = n.value;
-    var b=$('noteSaved'); if(b){b.style.display='inline';setTimeout(function(){b.style.display='none';},2000);}
+    currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
+    toast('บันทึกแล้ว — โดย '+((session&&session.name)||'-'));
   }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+function saveAppt(typeKey){
+  if(!currentRec) return;
+  var t = APPT_TYPES.filter(function(a){return a.k===typeKey;})[0];
+  var dEl=$('appt_'+typeKey+'_date'), tmEl=$('appt_'+typeKey+'_time'), plEl=$('appt_'+typeKey+'_place'), ntEl=$('appt_'+typeKey+'_note');
+  if(!dEl || !dEl.value){ alert('กรุณาระบุวันที่นัดหมาย'); return; }
+  currentRec.appts = currentRec.appts || {};
+  currentRec.appts[typeKey] = {
+    date: dEl.value, time: tmEl?tmEl.value:'', place: plEl?plEl.value:'', note: ntEl?ntEl.value:'',
+    by: (session&&session.name)||'-', savedAt: new Date().toISOString()
+  };
+  if(currentRec._editAppt) currentRec._editAppt[typeKey] = false;
+  var entry = logEntry(t.l+' → '+dateTH(dEl.value)+(tmEl&&tmEl.value?' '+tmEl.value+' น.':''));
+  apiUpdate(currentRec.id, {appts:currentRec.appts, logEntry:entry}).then(function(){
+    currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
+    records.forEach(function(r){ if(r.id===currentRec.id){ r.appts=currentRec.appts; r.log=currentRec.log; } });
+    toast('บันทึก'+t.l+'แล้ว');
+    render();
+  }).catch(function(err){ alert('บันทึกนัดหมายไม่สำเร็จ: '+err.message); });
+}
+function clearAppt(typeKey){
+  if(!currentRec || !currentRec.appts || !currentRec.appts[typeKey]) return;
+  if(!confirm('ลบนัดหมายนี้?')) return;
+  delete currentRec.appts[typeKey];
+  var entry = logEntry('ยกเลิก'+(APPT_TYPES.filter(function(a){return a.k===typeKey;})[0]||{}).l);
+  apiUpdate(currentRec.id, {appts:currentRec.appts, logEntry:entry}).then(function(){
+    currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
+    render();
+  }).catch(function(err){ alert('ลบไม่สำเร็จ: '+err.message); });
+}
+// ─── Jobs admin ──────────────────────────────────────────────────────
+function editJob(id){
+  editingJob = id ? JSON.parse(JSON.stringify(jobs.filter(function(j){return j.id===id;})[0]||null))
+                  : { id:'', title:'', dept:'', location:'Chatree Gold Mine, พิจิตร', type:'พนักงานประจำ', openings:1, status:'เปิดรับ', posted:new Date().toISOString(), by:(session&&session.name)||'-' };
+  render();
+}
+function cancelEditJob(){ editingJob=null; render(); }
+function saveJob(){
+  var t=$('jb_title'); if(!t||!t.value.trim()){ alert('กรุณาระบุชื่อตำแหน่ง'); return; }
+  editingJob.title = t.value.trim();
+  editingJob.dept = $('jb_dept') ? $('jb_dept').value.trim() : '';
+  editingJob.location = $('jb_loc') ? $('jb_loc').value.trim() : '';
+  editingJob.type = $('jb_type') ? $('jb_type').value : 'พนักงานประจำ';
+  editingJob.openings = parseInt($('jb_open') ? $('jb_open').value : '1',10) || 1;
+  editingJob.status = $('jb_status') ? $('jb_status').value : 'เปิดรับ';
+  editingJob.qual = $('jb_qual') ? $('jb_qual').value.trim() : '';
+  if(!editingJob.posted) editingJob.posted = new Date().toISOString();
+  editingJob.by = (session&&session.name) || editingJob.by || '-';
+  apiSaveJob(editingJob).then(function(saved){
+    var found=false;
+    jobs = jobs.map(function(j){ if(j.id===saved.id){found=true;return saved;} return j; });
+    if(!found) jobs.unshift(saved);
+    editingJob=null;
+    toast('บันทึกตำแหน่งงานแล้ว');
+    render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+function deleteJob(id){
+  var j = jobs.filter(function(x){return x.id===id;})[0];
+  if(!confirm('ลบตำแหน่ง "'+(j?j.title:id)+'" ออกจากประกาศรับสมัคร?')) return;
+  apiDeleteJob(id).then(function(){
+    jobs = jobs.filter(function(x){return x.id!==id;});
+    render();
+  }).catch(function(err){ alert('ลบไม่สำเร็จ: '+err.message); });
+}
+function applyJob(title){
+  F = blankF(); photoDataURL=null; cur=0;
+  F.pos1 = title || '';
+  view='apply'; render(); window.scrollTo(0,0);
+}
+// ─── Toast ───────────────────────────────────────────────────────────
+function toast(msg){
+  var t = document.createElement('div');
+  t.className='toast'; t.textContent='✓ '+msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.classList.add('show'); }, 10);
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); },300); }, 2600);
 }
 
 // ─── Views ────────────────────────────────────────────────────────────
 function viewLogin(){
+  var opts = CONFIG.HR_USERS.map(function(a){
+    return '<option value="'+a.user+'">'+a.name+' ('+a.user+')</option>';
+  }).join('');
   return '<div class="login-box"><div style="font-size:28px;margin-bottom:8px">🔐</div>'
     + '<h2 style="font-size:16px;color:var(--primary);margin-bottom:4px">HR Dashboard</h2>'
     + '<p style="font-size:12px;color:var(--muted);margin-bottom:18px">สำหรับเจ้าหน้าที่ฝ่ายทรัพยากรบุคคลเท่านั้น</p>'
+    + '<select id="hrUser" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:8px">'+opts+'</select>'
     + '<input type="password" id="hrPass" placeholder="รหัสผ่าน" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:6px" onkeydown="if(event.key===\'Enter\')tryLogin()">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:6px;cursor:pointer"><input type="checkbox" id="chkRemember" checked> จดจำการเข้าสู่ระบบในเครื่องนี้</label>'
     + '<div class="err-msg" id="loginErr" style="margin-bottom:10px;min-height:16px"></div>'
     + '<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="tryLogin()">เข้าสู่ระบบ</button>'
-    + '<p style="font-size:10px;color:var(--muted);margin-top:14px">การเข้าถึงข้อมูลผู้สมัครอยู่ภายใต้นโยบายคุ้มครองข้อมูลส่วนบุคคล</p></div>';
+    + '<p style="font-size:10px;color:var(--muted);margin-top:14px">ทุกการเปลี่ยนสถานะและบันทึกจะระบุชื่อผู้ดำเนินการ<br>การเข้าถึงข้อมูลผู้สมัครอยู่ภายใต้นโยบายคุ้มครองข้อมูลส่วนบุคคล</p></div>';
+}
+// ─── หน้าแรก: ตำแหน่งงานที่เปิดรับ ─────────────────────────────────────
+function viewHome(){
+  var open = jobs.filter(function(j){ return j.status==='เปิดรับ'; });
+  var cards = open.map(function(j){
+    return '<div class="job-card">'
+      + '<div class="job-title">'+esc(j.title)+'</div>'
+      + '<div class="job-meta">'
+      + (j.dept?'<span>🏢 '+esc(j.dept)+'</span>':'')
+      + '<span>📍 '+esc(j.location||'Chatree Gold Mine')+'</span>'
+      + '<span>👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
+      + '<span>📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
+      + '</div>'
+      + (j.qual?'<div class="job-qual">'+esc(j.qual)+'</div>':'')
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">'
+      + '<span style="font-size:11px;color:var(--muted)">ประกาศ '+dateTH(j.posted)+'</span>'
+      + '<button class="btn btn-primary btn-sm" onclick="applyJob(\''+esc(j.title).replace(/'/g,'&#39;')+'\')">สมัครตำแหน่งนี้ →</button>'
+      + '</div></div>';
+  }).join('');
+  var jobsSection = open.length
+    ? '<div class="job-grid">'+cards+'</div>'
+    : '<div class="empty-state">ขณะนี้ยังไม่มีประกาศรับสมัครงาน — สามารถยื่นใบสมัครทั่วไปไว้ล่วงหน้าได้</div>';
+  return '<div class="home-hero">'
+    + '<h1>ร่วมงานกับ อัครา รีซอร์สเซส</h1>'
+    + '<p>บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) — เหมืองแร่ทองคำชาตรี จ.พิจิตร<br>เปิดรับสมัครบุคลากรร่วมเป็นส่วนหนึ่งของทีม</p>'
+    + '</div>'
+    + '<div class="section-label" style="font-size:13px">ตำแหน่งงานที่เปิดรับ <span style="font-weight:400;color:var(--muted);text-transform:none">('+open.length+' ตำแหน่ง)</span></div>'
+    + jobsSection
+    + '<div style="text-align:center;margin-top:22px;padding:18px;background:#fff;border:1px dashed var(--border);border-radius:8px">'
+    + '<p style="font-size:13px;color:var(--muted);margin-bottom:10px">ไม่พบตำแหน่งที่ต้องการ? ยื่นใบสมัครทั่วไปเก็บไว้ในระบบได้</p>'
+    + '<button class="btn btn-outline" onclick="applyJob(\'\')">กรอกใบสมัครทั่วไป</button></div>';
+}
+// ─── HR layout: sidebar ──────────────────────────────────────────────
+function hrShell(content){
+  var menu = [
+    {k:'applicants', icon:'📋', l:'ทะเบียนผู้สมัคร'},
+    {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
+    {k:'settings',   icon:'⚙️', l:'ตั้งค่าระบบ'}
+  ].map(function(m){
+    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
+  }).join('');
+  return '<div class="hr-layout">'
+    + '<aside class="sidebar"><div class="side-user">'
+    + '<div class="side-avatar">'+esc(((session&&session.name)||'?').charAt(0))+'</div>'
+    + '<div><div style="font-weight:600;font-size:13px">'+esc((session&&session.name)||'-')+'</div>'
+    + '<div style="font-size:10px;color:var(--muted)">เจ้าหน้าที่ HR</div></div></div>'
+    + '<nav>'+menu+'</nav>'
+    + '<div style="margin-top:auto;padding-top:14px;border-top:1px solid var(--border)">'
+    + '<div class="side-item" onclick="view=\'home\';loadHome()"><span>🏠</span> หน้าประกาศรับสมัคร</div>'
+    + '<div class="side-item" style="color:var(--danger)" onclick="logout()"><span>⏻</span> ลงชื่อออก</div>'
+    + '</div></aside>'
+    + '<main style="flex:1;min-width:0">'+content+'</main></div>';
 }
 function viewDashboard(){
+  if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
+  if(hrMenu==='settings') return hrShell(viewSettings());
+  return hrShell(viewApplicants());
+}
+function lastScreener(r){
+  var lg = r.log||[];
+  for(var i=lg.length-1;i>=0;i--){ if(lg[i].by && lg[i].by!=='-') return lg[i].by; }
+  return '';
+}
+function nextAppt(r){
+  var a=r.appts||{};
+  var items = APPT_TYPES.filter(function(t){return a[t.k]&&a[t.k].date;});
+  if(!items.length) return '';
+  var t = items[items.length-1];
+  return t.icon+' '+dateTH(a[t.k].date);
+}
+function viewApplicants(){
   var counts = {all: records.length};
   STATUSES.forEach(function(s){ counts[s] = records.filter(function(r){return r.status===s;}).length; });
   var statClass = {'ใหม่':'s-new','คัดกรอง':'s-screen','นัดสัมภาษณ์':'s-intv','ผ่าน':'s-pass','ไม่ผ่าน':'s-fail'};
@@ -584,38 +996,165 @@ function viewDashboard(){
   var rows = list.map(function(r){
     var d=r.data||{};
     var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    var who = lastScreener(r);
+    var ap = nextAppt(r);
     return '<tr>'
       + '<td class="rec-no">'+esc(r.id)+'</td>'
       + '<td><strong>'+esc(d.firstName)+' '+esc(d.lastName)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(d.phone||'')+'</span></td>'
       + '<td>'+esc(d.pos1||'-')+'</td>'
       + '<td style="font-size:12px">'+dateTH(r.ts)+'</td>'
-      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span></td>'
-      + '<td><select class="status-sel" onchange="changeStatus(\''+r.id+'\',this.value)">'+opts+'</select></td>'
+      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span>'+(ap?'<br><span style="font-size:10px;color:var(--muted)">'+ap+'</span>':'')+'</td>'
+      + '<td style="font-size:11px;color:var(--muted)">'+esc(who||'—')+'</td>'
+      + '<td><select class="status-sel" onchange="changeStatus(\''+r.id+'\',this.value,this)">'+opts+'</select></td>'
       + '<td style="white-space:nowrap"><button class="btn btn-sm btn-outline" onclick="openDetail(\''+r.id+'\')">ดูใบสมัคร</button></td>'
       + '</tr>';
   }).join('');
   var table = list.length
-    ? '<table class="ats-table"><thead><tr><th>เลขรับ</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>วันที่สมัคร</th><th>สถานะ</th><th>เปลี่ยนสถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    ? '<table class="ats-table"><thead><tr><th>เลขรับ</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>วันที่สมัคร</th><th>สถานะ / นัดหมาย</th><th>ผู้คัดกรองล่าสุด</th><th>เปลี่ยนสถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
     : '<div class="empty-state">'+(records.length?'ไม่พบผู้สมัครตามเงื่อนไขที่ค้นหา':'ยังไม่มีผู้สมัคร — เมื่อมีการส่งใบสมัครเข้ามา รายการจะแสดงที่นี่')+'</div>';
   return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">📋 ทะเบียนผู้สมัครงาน</h2>'
     + '<div style="margin-left:auto;display:flex;gap:8px">'
     + '<button class="btn btn-sm btn-accent" onclick="exportRegister()">📊 Export ทะเบียน Excel</button>'
-    + '<button class="btn btn-sm" onclick="loadDashboard()">↻ รีเฟรช</button>'
-    + '<button class="btn btn-sm" onclick="view=\'apply\';render()">← หน้าสมัครงาน</button></div></div>'
-    + (isDemo()?'<div class="alert alert-warn" style="font-size:12px">โหมดทดลอง: ข้อมูลเก็บใน localStorage ของเครื่องนี้เท่านั้น — ตั้งค่า CONFIG.API_URL เพื่อเชื่อมฐานข้อมูลกลาง</div>':'')
+    + '<button class="btn btn-sm" onclick="loadDashboard()">↻ รีเฟรช</button></div></div>'
+    + (isDemo()?'<div class="alert alert-warn" style="font-size:12px">โหมดทดลอง: ข้อมูลเก็บใน localStorage ของเครื่องนี้เท่านั้น และอีเมลแจ้งเตือนจะทำงานเมื่อเชื่อม API_URL แล้ว</div>':'')
     + '<div class="stats-row">'+stats+'</div>'
     + '<div class="search-bar"><input placeholder="🔍 ค้นหา ชื่อ / เลขรับ / ตำแหน่ง / เบอร์โทร" value="'+esc(searchText)+'" oninput="searchText=this.value;renderTableOnly()">'
     + '</div><div id="atsTableWrap">'+table+'</div>';
 }
+// ─── Jobs admin ──────────────────────────────────────────────────────
+function viewJobsAdmin(){
+  var form = '';
+  if(editingJob){
+    form = '<div class="card" style="border-left:4px solid var(--accent)">'
+      + '<div class="card-header"><div class="icon">'+(editingJob.id?'✏️':'➕')+'</div><h2>'+(editingJob.id?'แก้ไขตำแหน่ง '+esc(editingJob.id):'เพิ่มตำแหน่งงานใหม่')+'</h2></div>'
+      + '<div class="form-grid g2">'
+      + '<div class="form-group"><label><span class="th">ชื่อตำแหน่ง *</span></label><input id="jb_title" value="'+val(editingJob.title)+'" placeholder="เช่น ช่างไฟฟ้า"></div>'
+      + '<div class="form-group"><label><span class="th">แผนก / หน่วยงาน</span></label><input id="jb_dept" value="'+val(editingJob.dept)+'" placeholder="เช่น Maintenance, Mining, HR"></div></div>'
+      + '<div class="form-grid g3" style="margin-top:10px">'
+      + '<div class="form-group"><label><span class="th">สถานที่ปฏิบัติงาน</span></label><input id="jb_loc" value="'+val(editingJob.location)+'"></div>'
+      + '<div class="form-group"><label><span class="th">ประเภทการจ้าง</span></label><select id="jb_type">'
+      + ['พนักงานประจำ','สัญญาจ้าง','รายวัน','ฝึกงาน'].map(function(o){return '<option'+(editingJob.type===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
+      + '<div class="form-group"><label><span class="th">จำนวนที่ต้องการ (อัตรา)</span></label><input id="jb_open" type="number" min="1" value="'+val(editingJob.openings||1)+'"></div></div>'
+      + '<div class="form-group" style="margin-top:10px"><label><span class="th">คุณสมบัติโดยย่อ</span></label><textarea id="jb_qual" placeholder="วุฒิการศึกษา ประสบการณ์ ใบรับรองที่ต้องมี ฯลฯ">'+val(editingJob.qual)+'</textarea></div>'
+      + '<div class="form-grid g2" style="margin-top:10px"><div class="form-group"><label><span class="th">สถานะประกาศ</span></label><select id="jb_status">'
+      + ['เปิดรับ','ปิดรับ'].map(function(o){return '<option'+(editingJob.status===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div></div>'
+      + '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-primary" onclick="saveJob()">💾 บันทึก</button>'
+      + '<button class="btn" onclick="cancelEditJob()">ยกเลิก</button></div></div>';
+  }
+  var rows = jobs.map(function(j){
+    var applied = records.filter(function(r){ return r.data && r.data.pos1===j.title; }).length;
+    return '<tr>'
+      + '<td class="rec-no">'+esc(j.id)+'</td>'
+      + '<td><strong>'+esc(j.title)+'</strong>'+(j.qual?'<br><span style="font-size:11px;color:var(--muted)">'+esc(j.qual).slice(0,60)+'</span>':'')+'</td>'
+      + '<td>'+esc(j.dept||'-')+'</td>'
+      + '<td style="text-align:center">'+esc(j.openings||1)+'</td>'
+      + '<td style="text-align:center"><strong>'+applied+'</strong></td>'
+      + '<td><span class="status-pill '+(j.status==='เปิดรับ'?'st-ผ่าน':'st-ไม่ผ่าน')+'">'+esc(j.status)+'</span></td>'
+      + '<td style="font-size:11px;color:var(--muted)">'+esc(j.by||'-')+'<br>'+dateTH(j.posted)+'</td>'
+      + '<td style="white-space:nowrap"><button class="btn btn-sm" onclick="editJob(\''+j.id+'\')">แก้ไข</button> '
+      + '<button class="btn btn-sm" style="color:var(--danger)" onclick="deleteJob(\''+j.id+'\')">ลบ</button></td></tr>';
+  }).join('');
+  var table = jobs.length
+    ? '<table class="ats-table"><thead><tr><th>รหัส</th><th>ตำแหน่ง</th><th>แผนก</th><th>รับ (อัตรา)</th><th>ผู้สมัคร</th><th>สถานะ</th><th>ประกาศโดย</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ยังไม่มีประกาศตำแหน่งงาน — กด "เพิ่มตำแหน่งงาน" เพื่อเริ่มประกาศรับสมัคร</div>';
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">💼 ตำแหน่งงานที่เปิดรับ</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="editJob(null)">➕ เพิ่มตำแหน่งงาน</button></div></div>'
+    + form + table;
+}
+// ─── Settings ────────────────────────────────────────────────────────
+function viewSettings(){
+  var userRows = CONFIG.HR_USERS.map(function(a){
+    return '<tr><td>'+esc(a.name)+'</td><td style="font-family:monospace">'+esc(a.user)+'</td>'
+      + '<td>'+(session&&session.user===a.user?'<span class="status-pill st-ผ่าน">กำลังใช้งาน</span>':'')+'</td></tr>';
+  }).join('');
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">⚙️ ตั้งค่าระบบ</h2></div>'
+    + '<div class="card"><div class="card-header"><div class="icon">🔗</div><h2>การเชื่อมต่อ</h2></div>'
+    + '<dl class="detail-grid">'
+    + '<dt>โหมดการทำงาน</dt><dd>'+(isDemo()?'<span class="status-pill st-คัดกรอง">ทดลอง (localStorage)</span>':'<span class="status-pill st-ผ่าน">เชื่อมต่อฐานข้อมูลกลาง</span>')+'</dd>'
+    + '<dt>แบบฟอร์ม</dt><dd>'+CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev+' (Effective '+CONFIG.DOC.effective+')</dd>'
+    + '<dt>อีเมลแจ้งเตือน</dt><dd>ตั้งค่าที่ HR_EMAIL ในไฟล์ backend (Code.gs) — ส่งอัตโนมัติเมื่อมีใบสมัครใหม่</dd>'
+    + '</dl></div>'
+    + '<div class="card"><div class="card-header"><div class="icon">👥</div><h2>เจ้าหน้าที่ HR ('+CONFIG.HR_USERS.length+' คน)</h2></div>'
+    + '<table class="ats-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้</th><th></th></tr></thead><tbody>'+userRows+'</tbody></table>'
+    + '<p style="font-size:11px;color:var(--muted);margin-top:10px">เพิ่ม/แก้ไขบัญชีและรหัสผ่านได้ที่ CONFIG.HR_USERS ในไฟล์ระบบ ทุกการเปลี่ยนสถานะ บันทึก และนัดหมาย จะระบุชื่อผู้ดำเนินการพร้อมเวลาใน Activity Log ของผู้สมัครแต่ละราย</p></div>';
+}
 function renderTableOnly(){
   var w=$('atsTableWrap'); if(!w) return;
-  var tmp = viewDashboard();
+  var tmp = viewApplicants();
   var div = document.createElement('div'); div.innerHTML = tmp;
   var nw = div.querySelector('#atsTableWrap');
   if(nw) w.innerHTML = nw.innerHTML;
 }
+function buildApptSection(r){
+  var hint = '';
+  if(r.status==='ใหม่'||r.status==='คัดกรอง'){
+    hint = '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">เปลี่ยนสถานะเป็น "นัดสัมภาษณ์" หรือ "ผ่าน" เพื่อดำเนินการนัดหมายขั้นตอนถัดไป (บันทึกล่วงหน้าได้)</p>';
+  }
+  r._editAppt = r._editAppt || {};
+  var cards = APPT_TYPES.map(function(t){
+    var a = (r.appts||{})[t.k];
+    var editing = r._editAppt[t.k];
+    if(a && a.date && !editing){
+      return '<div class="appt-card set"><div class="appt-head"><span>'+t.icon+' '+t.l+'</span><span class="status-pill st-ผ่าน">นัดแล้ว</span></div>'
+        + '<div class="appt-body"><strong style="font-size:15px">'+dateTH(a.date)+(a.time?' เวลา '+esc(a.time)+' น.':'')+'</strong>'
+        + (a.place?'<br>📍 '+esc(a.place):'')
+        + (a.note?'<br><span style="color:var(--muted)">'+esc(a.note)+'</span>':'')
+        + '<br><span style="font-size:10px;color:var(--muted)">บันทึกโดย '+esc(a.by||'-')+'</span></div>'
+        + '<div style="display:flex;gap:6px;margin-top:8px">'
+        + '<button class="btn btn-sm" onclick="editAppt(\''+t.k+'\')">แก้ไข</button>'
+        + '<button class="btn btn-sm" style="color:var(--danger)" onclick="clearAppt(\''+t.k+'\')">ยกเลิกนัด</button></div></div>';
+    }
+    var pre = a||{};
+    return '<div class="appt-card"><div class="appt-head"><span>'+t.icon+' '+t.l+'</span></div>'
+      + '<div class="form-grid g2" style="margin-top:8px;gap:8px">'
+      + '<div class="form-group"><label><span class="th">วันที่</span></label><input type="date" id="appt_'+t.k+'_date" value="'+val(pre.date)+'"></div>'
+      + '<div class="form-group"><label><span class="th">เวลา</span></label><input type="time" id="appt_'+t.k+'_time" value="'+val(pre.time)+'"></div></div>'
+      + '<div class="form-group" style="margin-top:8px"><label><span class="th">สถานที่</span></label><input id="appt_'+t.k+'_place" value="'+val(pre.place)+'" placeholder="เช่น ห้องประชุม HR / รพ.พิจิตร"></div>'
+      + '<div class="form-group" style="margin-top:8px"><label><span class="th">หมายเหตุ</span></label><input id="appt_'+t.k+'_note" value="'+val(pre.note)+'" placeholder="เอกสารที่ต้องนำมา ฯลฯ"></div>'
+      + '<div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveAppt(\''+t.k+'\')">บันทึกนัดหมาย</button>'
+      + (editing?'<button class="btn btn-sm" onclick="currentRec._editAppt[\''+t.k+'\']=false;render()">ยกเลิก</button>':'')
+      + '</div></div>';
+  }).join('');
+  return '<div class="section-label" style="margin-top:14px">การนัดหมาย Appointments</div>'+hint+'<div class="appt-grid">'+cards+'</div>';
+}
+function editAppt(typeKey){
+  if(!currentRec) return;
+  currentRec._editAppt = currentRec._editAppt || {};
+  currentRec._editAppt[typeKey] = true;
+  render();
+}
+function buildLogSection(r){
+  var lg = (r.log||[]).slice().reverse();
+  if(!lg.length) return '';
+  var items = lg.map(function(e){
+    var d = new Date(e.ts);
+    var when = isNaN(d) ? '' : dateTH(e.ts)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    return '<div class="log-item"><span class="log-when">'+when+'</span><span class="log-by">'+esc(e.by)+'</span><span>'+esc(e.action)+'</span></div>';
+  }).join('');
+  return '<div class="section-label" style="margin-top:14px">ประวัติการดำเนินการ Activity Log</div><div class="log-list">'+items+'</div>';
+}
+function buildDocsSection(r){
+  var d = r.data||{};
+  var docs = d.docs||[];
+  if(!docs.length) return '<div class="section-label" style="margin-top:14px">เอกสารแนบ Documents</div><p style="font-size:12px;color:var(--muted)">ผู้สมัครไม่ได้แนบเอกสาร — ขอรับเอกสารในวันสัมภาษณ์</p>';
+  var groups = DOC_TYPES.map(function(t){
+    var files = docs.filter(function(x){return x.type===t.k;});
+    if(!files.length) return '';
+    var items = files.map(function(f){
+      var inner = '<span class="doc-chip-icon">'+(f.mime==='application/pdf'?'📕':'🖼')+'</span>'
+        + '<span class="doc-chip-name">'+esc(f.name)+'</span>'
+        + '<span class="doc-chip-size">'+fmtSize(f.size||0)+'</span>';
+      if(f.url){
+        return '<a class="doc-chip link" href="'+esc(f.url)+'" target="_blank" rel="noopener">'+inner+' <span style="color:var(--primary)">เปิด ↗</span></a>';
+      }
+      return '<div class="doc-chip">'+inner+(f.demo?' <span style="font-size:10px;color:var(--warn)">(โหมดทดลอง — ไฟล์ไม่ถูกเก็บ)</span>':'')+'</div>';
+    }).join('');
+    return '<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+t.icon+' '+t.l+'</div>'+items+'</div>';
+  }).join('');
+  return '<div class="section-label" style="margin-top:14px">เอกสารแนบ Documents ('+docs.length+' ไฟล์)</div>'+groups;
+}
 function viewDetail(){
-  if(!currentRec) return '<div class="empty-state">ไม่พบข้อมูล</div>';
+  if(!currentRec) return hrShell('<div class="empty-state">ไม่พบข้อมูล</div>');
   var r=currentRec, d=r.data||{};
   var eduRows = EDU_LEVELS.map(function(lv){
     var e=(d.edu||{})[lv.k]||{};
@@ -630,7 +1169,7 @@ function viewDetail(){
     return '<span class="status-pill '+(v===true?'st-ผ่าน':v===false?'st-ไม่ผ่าน':'st-คัดกรอง')+'" style="margin-right:6px">ข้อ '+(i+1)+': '+(v===true?'ยินยอม':v===false?'ไม่ยินยอม':'ไม่ระบุ')+'</span>';
   }).join('');
   var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
-  return '<div class="toolbar">'
+  return hrShell('<div class="toolbar">'
     + '<button class="btn btn-sm" onclick="view=\'dashboard\';render()">← กลับทะเบียน</button>'
     + '<div style="margin-left:auto;display:flex;gap:8px">'
     + '<button class="btn btn-sm btn-outline" onclick="previewPrint(currentRec)">👁 ตัวอย่างเอกสาร</button>'
@@ -638,7 +1177,7 @@ function viewDetail(){
     + '<button class="btn btn-sm btn-accent" onclick="exportOne(currentRec)">📊 Excel</button></div></div>'
     + '<div class="card"><div class="card-header"><div class="icon">👤</div><h2>'+esc(d.firstName)+' '+esc(d.lastName)+' <small class="rec-no" style="font-family:monospace">'+esc(r.id)+'</small></h2>'
     + '<div style="margin-left:auto;display:flex;align-items:center;gap:8px"><span class="status-pill st-'+r.status+'">'+r.status+'</span>'
-    + '<select class="status-sel" onchange="changeStatus(currentRec.id,this.value);currentRec.status=this.value;render()">'+opts+'</select></div></div>'
+    + '<select class="status-sel" onchange="changeStatus(currentRec.id,this.value,this)">'+opts+'</select></div></div>'
     + '<div style="display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:280px"><dl class="detail-grid">'
     + '<dt>ตำแหน่งที่สมัคร</dt><dd>'+esc(d.pos1||'-')+(d.pos2?' / '+esc(d.pos2):'')+(d.pos3?' / '+esc(d.pos3):'')+'</dd>'
     + '<dt>เงินเดือนที่คาดหวัง</dt><dd>'+esc(d.salary||'-')+' บาท</dd>'
@@ -651,13 +1190,16 @@ function viewDetail(){
     + '</dl></div>'
     + (r.photo?'<div><img src="'+r.photo+'" style="width:110px;height:138px;object-fit:cover;border:1px solid var(--border);border-radius:4px"></div>':'')
     + '</div>'
-    + (eduRows?'<div class="section-label">การศึกษา</div><table class="ats-table"><thead><tr><th>ระดับ</th><th>สถาบัน</th><th>สาขา</th><th>ปีจบ</th><th>GPA</th></tr></thead><tbody>'+eduRows+'</tbody></table>':'')
+    + buildApptSection(r)
+    + buildDocsSection(r)
+    + (eduRows?'<div class="section-label" style="margin-top:14px">การศึกษา</div><table class="ats-table"><thead><tr><th>ระดับ</th><th>สถาบัน</th><th>สาขา</th><th>ปีจบ</th><th>GPA</th></tr></thead><tbody>'+eduRows+'</tbody></table>':'')
     + (workRows?'<div class="section-label" style="margin-top:14px">ประวัติการทำงาน</div><table class="ats-table"><thead><tr><th>บริษัท</th><th>ตำแหน่ง</th><th>ช่วงเวลา</th><th>เงินเดือน</th><th>สาเหตุลาออก</th></tr></thead><tbody>'+workRows+'</tbody></table>':'')
     + '<div class="section-label" style="margin-top:14px">ความยินยอม PDPA</div><div>'+pdpaSum+'</div>'
     + '<div class="section-label" style="margin-top:14px">บันทึกของ HR</div>'
     + '<textarea class="note-area" id="noteArea" placeholder="บันทึกผลสัมภาษณ์ ข้อสังเกต ฯลฯ">'+esc(r.note||'')+'</textarea>'
-    + '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveNote()">บันทึก</button> <span id="noteSaved" style="display:none;color:var(--success);font-size:12px">✓ บันทึกแล้ว</span></div>'
-    + '</div>';
+    + '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveNote()">บันทึก</button></div>'
+    + buildLogSection(r)
+    + '</div>');
 }
 function viewSuccess(){
   var rec = lastSubmitted || {id:'-'};
@@ -674,11 +1216,12 @@ function viewSuccess(){
     + '</table></div>'
     + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
     + '<button class="btn btn-outline" onclick="printRecord(lastSubmitted)">🖨 พิมพ์ / บันทึก PDF</button>'
-    + '<button class="btn" onclick="startNew()">สมัครรายการใหม่</button></div>'
+    + '<button class="btn" onclick="startNew()">← กลับหน้าประกาศรับสมัคร</button></div>'
     + '<p style="font-size:11px;color:var(--muted);margin-top:20px">ฝ่ายทรัพยากรบุคคลจะติดต่อกลับตามเบอร์โทรศัพท์หรืออีเมลที่ระบุไว้</p></div>';
 }
 function startNew(){
-  F = blankF(); photoDataURL=null; cur=0; lastSubmitted=null; view='apply'; render(); window.scrollTo(0,0);
+  F = blankF(); photoDataURL=null; cur=0; lastSubmitted=null;
+  view='home'; loadHome(); window.scrollTo(0,0);
 }
 
 // ─── Print document: AKR-OHR-FM-001 replica + ISO footer ทุกหน้า ───────
@@ -758,6 +1301,12 @@ function buildPrintDoc(rec){
     + '<table style="margin-bottom:1.6mm"><tr><td class="lb" colspan="2">บุคคลที่ท่านรู้จักหรือร่วมงานด้วยภายในบริษัท People you know or have previously worked within the company.</td></tr>'
     + '<tr><td style="width:62%">1. '+esc(kn[0]&&kn[0].name)+'</td><td>ความสัมพันธ์ Relationship: '+esc(kn[0]&&kn[0].rel)+'</td></tr>'
     + '<tr><td>2. '+esc(kn[1]&&kn[1].name)+'</td><td>ความสัมพันธ์ Relationship: '+esc(kn[1]&&kn[1].rel)+'</td></tr></table>'
+    + '<table style="margin-bottom:1.6mm"><tr><td class="lb" colspan="'+DOC_TYPES.length+'">เอกสารประกอบการสมัคร Supporting Documents (ยื่นผ่านระบบออนไลน์)</td></tr><tr>'
+    + DOC_TYPES.map(function(t){
+        var n = ((d.docs)||[]).filter(function(x){return x.type===t.k;}).length;
+        return '<td class="sm" style="text-align:center">'+ck(n>0)+' '+t.l+(n>1?' ('+n+')':'')+'</td>';
+      }).join('')
+    + '</tr></table>'
     + '<table><tr><td class="sm" style="width:64%">ข้าพเจ้าขอรับรองว่า ข้อความทั้งหมดที่กรอกลงในใบสมัครเป็นความจริงทั้งหมด หากพบว่าข้อมูลใด ๆ เป็นความเท็จ ข้าพเจ้ายินดีให้นายจ้างเลิกจ้างได้ โดยไม่ต้องบอกกล่าวล่วงหน้า และไม่ต้องจ่ายค่าชดเชยใด ๆ ทั้งสิ้น<br><br>'
     + 'I hereby certify that the information contained in this application is true and correct. I understand that falsification or omission of any facts in said document will be cause for immediate termination of employment without notice, and the terminated employee will not receive any severance pay entitlements.</td>'
     + '<td>ลงชื่อผู้สมัคร Signature<br><br><br>....................................................<br>('+esc(d.firstName)+' '+esc(d.lastName)+')<br>วันที่ Date: '+applyDate+'<br><span class="sm" style="color:#555">ยื่นผ่านระบบรับสมัครออนไลน์ '+(d.agreed?'— ยืนยันข้อมูลแล้ว':'')+'<br>ลงนามรับรองอีกครั้งในวันสัมภาษณ์</span></td></tr></table>'
@@ -811,13 +1360,15 @@ function previewPrint(rec){
 function exportRegister(){
   if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ กรุณาเปิดผ่านอินเทอร์เน็ต'); return; }
   var wb = XLSX.utils.book_new();
-  var rows = [['เลขรับ','วันที่สมัคร','ชื่อ-นามสกุล','ตำแหน่ง 1','ตำแหน่ง 2','เงินเดือนคาดหวัง','โทรศัพท์','อีเมล','สถานะ','บันทึก HR']];
+  var rows = [['เลขรับ','วันที่สมัคร','ชื่อ-นามสกุล','ตำแหน่ง 1','ตำแหน่ง 2','เงินเดือนคาดหวัง','โทรศัพท์','อีเมล','สถานะ','ผู้คัดกรองล่าสุด','นัดสัมภาษณ์','ตรวจสุขภาพ','วันเริ่มงาน','เอกสารแนบ','บันทึก HR']];
   records.forEach(function(r){
-    var d=r.data||{};
-    rows.push([r.id, dateTH(r.ts), (d.firstName||'')+' '+(d.lastName||''), d.pos1||'', d.pos2||'', d.salary||'', d.phone||'', d.email||'', r.status||'', r.note||'']);
+    var d=r.data||{}; var a=r.appts||{};
+    var ap=function(k){ return a[k]&&a[k].date ? dateTH(a[k].date)+(a[k].time?' '+a[k].time:'') : ''; };
+    var nd=(d.docs||[]).length;
+    rows.push([r.id, dateTH(r.ts), (d.firstName||'')+' '+(d.lastName||''), d.pos1||'', d.pos2||'', d.salary||'', d.phone||'', d.email||'', r.status||'', lastScreener(r), ap('interview'), ap('health'), ap('start'), nd?nd+' ไฟล์':'', r.note||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:15},{wch:12},{wch:25},{wch:20},{wch:20},{wch:14},{wch:14},{wch:26},{wch:12},{wch:30}];
+  ws['!cols']=[{wch:15},{wch:12},{wch:25},{wch:20},{wch:20},{wch:14},{wch:14},{wch:26},{wch:12},{wch:14},{wch:16},{wch:16},{wch:16},{wch:10},{wch:30}];
   XLSX.utils.book_append_sheet(wb, ws, 'ทะเบียนผู้สมัคร');
   XLSX.writeFile(wb, 'ApplicantRegister_'+CONFIG.DOC.no+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
@@ -852,6 +1403,14 @@ function exportOne(rec){
   rows.push(['คอมพิวเตอร์', (d.compSkills||[]).filter(Boolean).join(', ')]);
   rows.push(['ภาษา', (d.langSkills||[]).filter(function(l){return l.lang;}).map(function(l){return l.lang+' '+(l.level||'');}).join(', ')]);
   rows.push(['ฉุกเฉิน', d.emgName, d.emgPhone, d.emgAddr, d.emgRel]);
+  if((d.docs||[]).length){
+    rows.push([]);
+    rows.push(['เอกสารแนบ','ประเภท','ขนาด','ลิงก์']);
+    d.docs.forEach(function(f){
+      var t = DOC_TYPES.filter(function(x){return x.k===f.type;})[0];
+      rows.push([f.name, t?t.l:f.type, fmtSize(f.size||0), f.url||'']);
+    });
+  }
   PDPA_ITEMS.forEach(function(it,i){
     var v=(d.pdpa||{})[it.k];
     rows.push(['PDPA ข้อ '+(i+1), v===true?'ยินยอม':v===false?'ไม่ยินยอม':'ไม่ระบุ']);
@@ -867,33 +1426,36 @@ function render(){
   var c = $('appView');
   var tag = $('modeTag');
   var hl = $('hrLink');
-  document.querySelector('.container').classList.toggle('wide', view==='dashboard'||view==='detail');
-  if(tag) tag.innerHTML = (view==='dashboard'||view==='detail') ? '<span class="mode-tag" style="background:#fff;border-color:#fff">HR Mode</span>' : '';
-  if(hl) hl.textContent = (view==='dashboard'||view==='detail'||view==='login') ? '← หน้าสมัครงาน' : 'สำหรับเจ้าหน้าที่ HR';
+  var inHR = (view==='dashboard'||view==='detail');
+  document.querySelector('.container').classList.toggle('wide', inHR);
+  if(tag) tag.innerHTML = inHR ? '<span class="mode-tag" style="background:#fff;border-color:#fff">HR: '+esc((session&&session.name)||'')+'</span>' : '';
+  if(hl) hl.textContent = (inHR||view==='login') ? '← หน้าประกาศรับสมัคร' : 'สำหรับเจ้าหน้าที่ HR';
 
+  if(view==='home'){ c.innerHTML = viewHome(); return; }
   if(view==='login'){ c.innerHTML = viewLogin(); var p=$('hrPass'); if(p)p.focus(); return; }
   if(view==='dashboard'){ c.innerHTML = viewDashboard(); return; }
   if(view==='detail'){ c.innerHTML = viewDetail(); return; }
   if(view==='success'){ c.innerHTML = viewSuccess(); return; }
 
   // apply mode
+  var backHome = '<div style="margin-bottom:12px"><a style="font-size:12px;color:var(--primary);cursor:pointer" onclick="view=\'home\';loadHome()">← กลับหน้าประกาศรับสมัคร</a></div>';
   var stepper = '<div class="stepper">'+STEPS.map(function(s,i){
     return '<div class="step-item '+(i<cur?'done':i===cur?'active':'')+'" onclick="goStep('+i+')"><div class="step-dot">'+(i<cur?'✓':(i+1))+'</div><div class="step-label">'+s+'</div></div>';
   }).join('')+'</div>';
-  var builders=[buildStep0,buildStep1,buildStep2,buildStep3,buildStep4,buildStep5];
+  var builders=[buildStep0,buildStep1,buildStep2,buildStep3,buildStep4,buildStepDocs,buildStep5];
   var body = builders[cur] ? builders[cur]() : '';
   var nav = '<div class="nav-bar">'
     + '<button class="btn btn-outline" id="btnPrev" onclick="prevStep()"'+(cur===0?' disabled':'')+'>← ย้อนกลับ</button>'
     + '<span class="step-info">ขั้นตอนที่ '+(cur+1)+' / '+STEPS.length+'</span>'
     + '<button class="btn '+(cur===STEPS.length-1?'btn-success':'btn-primary')+'" id="btnNext" onclick="nextStep()">'+(cur===STEPS.length-1?'✓ ส่งใบสมัคร':'ถัดไป →')+'</button>'
     + '</div>';
-  c.innerHTML = stepper + body + nav;
+  c.innerHTML = backHome + stepper + body + nav;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────
 $('logoImg').src = LOGO_SRC;
 window.addEventListener('afterprint', function(){ document.body.classList.remove('printing'); });
-render();
+loadHome();
 
 </script>
 </body>
