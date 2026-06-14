@@ -171,6 +171,13 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 /* Toast */
 .toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,12px);background:#1e2a3a;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:999;max-width:90vw}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
+.otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
+.settings-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--border)}
+.settings-tab{padding:8px 14px;font-size:13px;cursor:pointer;border-radius:6px 6px 0 0;color:var(--muted);border:1px solid transparent;border-bottom:none;margin-bottom:-2px}
+.settings-tab:hover{background:var(--bg)}
+.settings-tab.on{color:var(--primary);font-weight:600;background:#fff;border-color:var(--border);border-bottom:2px solid #fff}
+code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:11px;color:var(--primary)}
 .detail-grid{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-size:13px}
 .detail-grid dt{color:var(--muted)}
 .detail-grid dd{font-weight:500}
@@ -243,16 +250,12 @@ var LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEB
 // ════════════════════════════════════════════════════════════════════
 var CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbw_-fAqA-EyDfg-8ciksKFeTYOpmMiHvM2Na4jcW48OjOu57OOUNilBsa5eihL6CcKnIg/exec',                 // วาง URL ของ Google Apps Script Web App — เว้นว่าง = โหมดทดลอง (เก็บในเครื่อง)
-  HR_USERS: [                  // บัญชีเจ้าหน้าที่ HR (เปลี่ยนรหัสก่อนใช้งานจริง)
-    { user:'amnaj',   name:'Amnaj.hr',   pass:'akr#01' },
-    { user:'hr02',    name:'Parinya.hr',   pass:'akr#02' },
-    { user:'hr03',    name:'Chalita.hr',   pass:'akr#03' },
-    { user:'hr04',    name:'Chayanee.hr',   pass:'akr#04' },
-    { user:'hr05',    name:'Gantida.hr',   pass:'akr#05' },
-    { user:'hr06',    name:'Kopbun.hr',   pass:'akr#06' }
-  ],
+  API_TOKEN: '4d0d67a64d0b49f9b263f6c5f24f0fa5918783116d014745b4f8ddac32d36f1d',               // วาง API_TOKEN เดียวกับที่ตั้งใน Script Properties ของ backend
   DOC: { no:'AKR-OHR-FM-001', rev:'01', effective:'20/Jun/2025', pages:3 }
 };
+// หมายเหตุ: รหัสผ่าน HR ย้ายไปเก็บฝั่ง server (Script Properties → HR_USERS_JSON) แล้ว
+// โหมดทดลอง (ไม่มี API_URL) ใช้บัญชีจำลองด้านล่างนี้เท่านั้น
+var DEMO_HR = [{ user:'demo', name:'ผู้ทดสอบ', pass:'demo' }];
 var STATUSES = ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
 var APPT_TYPES = [
   { k:'interview', l:'นัดหมายสัมภาษณ์',        icon:'🗓' },
@@ -283,9 +286,24 @@ var currentRec = null;
 var filterStatus = '';
 var searchText = '';
 var lastSubmitted = null;
-var session = null;            // {user, name, ts} — จำ login ใน localStorage
+var session = null;            // {user, name, sid} — จำ login ใน localStorage (sid = server session)
 try { session = JSON.parse(localStorage.getItem('akr_hr_session')||'null'); } catch(e){ session = null; }
 if (session) hrAuthed = true;
+var otpState = { sent:false, verified:false, sending:false, email:'' };  // OTP สำหรับยืนยันอีเมลผู้สมัคร
+var settings = null;          // {company, stages, hospitals, emailTemplates}
+var hrUsersList = [];         // รายชื่อ HR (สำหรับหน้าตั้งค่า)
+var settingsTab = 'company';  // company | stages | hospitals | templates | accounts
+var DEFAULT_SETTINGS = {
+  company:{ name:'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)', site:'Chatree Gold Mine, จ.พิจิตร', hrPhone:'', hrEmail:'' },
+  stages:['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'],
+  hospitals:[],
+  emailTemplates:{
+    interview:{subject:'แจ้งนัดหมายสัมภาษณ์งาน — {company}', body:''},
+    health:{subject:'แจ้งนัดตรวจสุขภาพก่อนเริ่มงาน — {company}', body:''},
+    start:{subject:'แจ้งกำหนดวันเริ่มงาน — {company}', body:''}
+  }
+};
+function curStages(){ return (settings && settings.stages && settings.stages.length) ? settings.stages : STATUSES; }
 
 var F;
 function blankF(){
@@ -371,11 +389,45 @@ function nextRecNo(arr){
   });
   return prefix + ('0000'+(max+1)).slice(-4);
 }
-function apiSubmit(record){
+// shared POST: แนบ token + sid อัตโนมัติ
+function apiPost(payload){
+  payload.token = CONFIG.API_TOKEN;
+  if(session && session.sid) payload.sid = session.sid;
+  return fetch(CONFIG.API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  }).then(function(r){return r.json();});
+}
+function handleSessionError(res){
+  if(res && (res.error==='session_expired')){
+    session=null; hrAuthed=false; localStorage.removeItem('akr_hr_session');
+    alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    view='login'; render();
+    return true;
+  }
+  return false;
+}
+// ── OTP ──
+function apiRequestOtp(email){
+  if(isDemo()){ otpState._demoCode='123456'; return Promise.resolve({ok:true, demo:true}); }
+  return apiPost({action:'requestOtp', email:email});
+}
+function apiCheckDuplicate(idCard, email){
+  if(isDemo()){
+    var dup = lsLoad().filter(function(r){
+      var d=r.data||{};
+      return (d.idCard && d.idCard.replace(/\D/g,'')===String(idCard).replace(/\D/g,'')) ||
+             (d.email && d.email.toLowerCase()===String(email).toLowerCase());
+    })[0];
+    return Promise.resolve({ok:true, duplicate: dup?dup.id:''});
+  }
+  return apiPost({action:'checkDuplicate', idCard:idCard, email:email});
+}
+function apiSubmit(record, otp){
   if(isDemo()){
     var arr = lsLoad();
     record.id = nextRecNo(arr);
-    // โหมดทดลอง: localStorage มี quota จำกัด — เก็บเฉพาะ metadata ของไฟล์
     if(record.data && record.data.docs){
       record.data.docs = record.data.docs.map(function(x){
         return { type:x.type, name:x.name, mime:x.mime, size:x.size, demo:true };
@@ -386,20 +438,25 @@ function apiSubmit(record){
     catch(e){ arr.shift(); throw new Error('พื้นที่จัดเก็บของเบราว์เซอร์เต็ม (โหมดทดลอง)'); }
     return Promise.resolve(record);
   }
-  return fetch(CONFIG.API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'submit', record:record})
-  }).then(function(r){return r.json();}).then(function(res){
-    if(!res.ok) throw new Error(res.error||'submit failed');
+  return apiPost({action:'submit', record:record, otp:otp}).then(function(res){
+    if(!res.ok){ var e=new Error(res.message||res.error||'submit failed'); e.code=res.error; throw e; }
     record.id = res.id;
     return record;
   });
 }
 function apiList(){
   if(isDemo()){ return Promise.resolve(lsLoad()); }
-  return fetch(CONFIG.API_URL + '?action=list').then(function(r){return r.json();})
-    .then(function(res){ if(!res.ok) throw new Error(res.error||'list failed'); return res.records; });
+  return fetch(CONFIG.API_URL + '?action=list&sid='+encodeURIComponent(session&&session.sid||''))
+    .then(function(r){return r.json();})
+    .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(res.error||'list failed'); } return res.records; });
+}
+// HR login ผ่าน server
+function apiHrLogin(user, pass){
+  if(isDemo()){
+    var a = DEMO_HR.filter(function(x){return x.user===user && x.pass===pass;})[0];
+    return Promise.resolve(a ? {ok:true, sid:'demo-sid', name:a.name, user:a.user} : {ok:false, error:'bad_credentials'});
+  }
+  return apiPost({action:'hrLogin', user:user, pass:pass});
 }
 // fields: {status, note, appts, logEntry}
 function apiUpdate(id, fields){
@@ -416,12 +473,8 @@ function apiUpdate(id, fields){
     lsSave(arr);
     return Promise.resolve(true);
   }
-  return fetch(CONFIG.API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'update', id:id, fields:fields})
-  }).then(function(r){return r.json();}).then(function(res){
-    if(!res.ok) throw new Error(res.error||'update failed');
+  return apiPost({action:'update', id:id, fields:fields}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.error||'update failed'); }
     return true;
   });
 }
@@ -441,7 +494,8 @@ function nextJobNo(arr){
 }
 function apiJobs(){
   if(isDemo()){ return Promise.resolve(jobsLoadLS()); }
-  return fetch(CONFIG.API_URL + '?action=jobs').then(function(r){return r.json();})
+  return fetch(CONFIG.API_URL + '?action=jobs&token='+encodeURIComponent(CONFIG.API_TOKEN))
+    .then(function(r){return r.json();})
     .then(function(res){ if(!res.ok) throw new Error(res.error||'jobs failed'); return res.jobs; });
 }
 function apiSaveJob(job){
@@ -456,12 +510,8 @@ function apiSaveJob(job){
     jobsSaveLS(arr);
     return Promise.resolve(job);
   }
-  return fetch(CONFIG.API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'saveJob', job:job})
-  }).then(function(r){return r.json();}).then(function(res){
-    if(!res.ok) throw new Error(res.error||'save job failed');
+  return apiPost({action:'saveJob', job:job}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.error||'save job failed'); }
     job.id = res.id || job.id;
     return job;
   });
@@ -471,13 +521,42 @@ function apiDeleteJob(id){
     jobsSaveLS(jobsLoadLS().filter(function(j){return j.id!==id;}));
     return Promise.resolve(true);
   }
-  return fetch(CONFIG.API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'deleteJob', id:id})
-  }).then(function(r){return r.json();}).then(function(res){
-    if(!res.ok) throw new Error(res.error||'delete job failed');
+  return apiPost({action:'deleteJob', id:id}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.error||'delete job failed'); }
     return true;
+  });
+}
+// ── Settings ──
+function settingsLoadLS(){ try{ return JSON.parse(localStorage.getItem('akr_ats_settings')||'null'); }catch(e){ return null; } }
+function settingsSaveLS(s){ localStorage.setItem('akr_ats_settings', JSON.stringify(s)); }
+function apiSettings(){
+  if(isDemo()){
+    var s = settingsLoadLS() || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    return Promise.resolve({ok:true, settings:s, hrUsers:DEMO_HR.map(function(u){return {user:u.user,name:u.name};})});
+  }
+  return fetch(CONFIG.API_URL + '?action=settings&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
+    .then(function(r){return r.json();})
+    .then(function(res){ if(!res.ok) throw new Error(res.error||'settings failed'); return res; });
+}
+function apiSaveSettings(s){
+  if(isDemo()){ settingsSaveLS(s); return Promise.resolve(true); }
+  return apiPost({action:'saveSettings', settings:s}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.error||'save settings failed'); }
+    return true;
+  });
+}
+function apiSaveHrUsers(users){
+  if(isDemo()){ return Promise.resolve(true); }
+  return apiPost({action:'saveHrUsers', users:users}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.message||res.error||'save users failed'); }
+    return true;
+  });
+}
+function apiNotifyAppt(applicant, apptType, appt){
+  if(isDemo()){ return Promise.resolve({ok:true, sent:!!applicant.email}); }
+  return apiPost({action:'notifyAppt', applicant:applicant, apptType:apptType, appt:appt}).then(function(res){
+    if(!res.ok){ handleSessionError(res); throw new Error(res.error||'notify failed'); }
+    return res;
   });
 }
 
@@ -512,7 +591,8 @@ function buildStep1(){
     + '<div style="margin-top:12px">'+fld('วัน เดือน ปี เกิด','Date of Birth','dob','date',F.dob,'')+'</div></div></div>'
     + '<div class="form-grid" style="margin-top:14px">'+fldTA('ที่อยู่ตามทะเบียนบ้าน','House Registration Address','houseAddr',F.houseAddr,'บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด รหัสไปรษณีย์')
     + fldTA('ที่อยู่ปัจจุบัน (กรณีต่างจากทะเบียนบ้าน)','Present Address if different','presentAddr',F.presentAddr,'เว้นว่างหากเหมือนที่อยู่ตามทะเบียนบ้าน')+'</div>'
-    + '<div class="form-grid g2" style="margin-top:12px">'+fld('เบอร์โทรศัพท์ *','Telephone','phone','tel',F.phone,'0xx-xxx-xxxx')+fld('อีเมล *','Email Address','email','email',F.email,'name@example.com')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:12px">'+fld('เบอร์โทรศัพท์','Telephone','phone','tel',F.phone,'0xx-xxx-xxxx')+fld('อีเมล (ถ้ามี)','Email — optional','email','email',F.email,'name@example.com')+'</div>'
+    + '<p style="font-size:11px;color:var(--muted);margin-top:-4px">* กรุณากรอกเบอร์โทรศัพท์ หรืออีเมล อย่างน้อยหนึ่งช่องทาง เพื่อให้เจ้าหน้าที่ติดต่อกลับได้ — หากกรอกอีเมล ระบบจะส่งรหัส OTP ไปยืนยัน</p>'
     + '<div class="form-grid g3" style="margin-top:12px">'+fld('เลขบัตรประชาชน *','ID Card Number','idCard','text',F.idCard,'x-xxxx-xxxxx-xx-x')+fld('วันหมดอายุบัตร','Expired Date','idExpiry','date',F.idExpiry,'')+fld('ไลน์ไอดี','Line ID','lineId','text',F.lineId,'')+'</div>'
     + '<div class="section-label">สถานะทางทหาร Military Service</div><div class="radio-group" id="milGroup">'+mil+'</div></div>';
 }
@@ -667,12 +747,68 @@ function buildStep5(){
     + '<div class="alert alert-warn" style="margin-top:12px;font-size:12px"><strong>หมายเหตุ:</strong> กรณีที่ท่านไม่ให้ความยินยอม บริษัทอาจไม่สามารถดำเนินการในกระบวนการคัดเลือกบุคลากรได้</div>'
     + '<div class="check-row" onclick="toggleAgree(event)"><input type="checkbox" id="chkAgreed" '+(F.agreed?'checked':'')+' onclick="event.stopPropagation();F.agreed=this.checked;clearErr(\'agreed\')">'
     + '<div style="font-size:12px;line-height:1.7;color:var(--muted)"><strong style="color:var(--text)">ข้าพเจ้าขอรับรองว่า</strong> ข้อความทั้งหมดที่กรอกลงในใบสมัครเป็นความจริงทั้งหมด หากพบว่าข้อมูลใดๆ เป็นความเท็จ ข้าพเจ้ายินดีให้นายจ้างเลิกจ้างได้โดยไม่ต้องบอกกล่าวล่วงหน้า และไม่ต้องจ่ายค่าชดเชยใดๆ ทั้งสิ้น<br><em>I hereby certify that the information contained in this application is true and correct.</em></div></div>'
-    + '<span class="err-msg" id="err_agreed"></span></div>';
+    + '<span class="err-msg" id="err_agreed"></span>'
+    + buildOtpBlock()
+    + '</div>';
+}
+function buildOtpBlock(){
+  if(isDemo()){
+    return '<div class="otp-box"><div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:6px">📧 ยืนยันอีเมล (โหมดทดลอง)</div>'
+      + '<p style="font-size:12px;color:var(--muted)">โหมดทดลองข้ามการยืนยันอีเมล กดส่งใบสมัครได้เลย</p></div>';
+  }
+  // ไม่กรอกอีเมล → ใช้เบอร์โทรเป็นช่องทางหลัก ไม่ต้องยืนยัน OTP
+  if(!F.email){
+    return '<div class="otp-box"><div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:4px">📱 ติดต่อกลับทางโทรศัพท์</div>'
+      + '<p style="font-size:12px;color:var(--muted)">ท่านไม่ได้กรอกอีเมล — เจ้าหน้าที่ฝ่ายบุคคลจะติดต่อกลับทางเบอร์โทรศัพท์ <strong>'+esc(F.phone||'(ยังไม่ได้กรอกเบอร์)')+'</strong> กรุณาตรวจสอบให้ถูกต้องและเปิดรับสายจากเจ้าหน้าที่</p></div>';
+  }
+  if(otpState.verified && otpState.email===F.email){
+    return '<div class="otp-box ok"><div style="font-size:13px;font-weight:600;color:var(--success)">✓ ยืนยันอีเมล '+esc(F.email)+' แล้ว</div></div>';
+  }
+  var sentForThis = otpState.sent && otpState.email===F.email;
+  return '<div class="otp-box"><div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:6px">📧 ยืนยันอีเมลก่อนส่งใบสมัคร</div>'
+    + '<p style="font-size:12px;color:var(--muted);margin-bottom:8px">ระบบจะส่งรหัส OTP 6 หลักไปที่ <strong>'+esc(F.email||'(กรุณากรอกอีเมลในขั้นตอนข้อมูลส่วนตัว)')+'</strong> เพื่อยืนยันว่าเป็นอีเมลของท่านจริง</p>'
+    + (!sentForThis
+        ? '<button class="btn btn-sm btn-outline" id="otpSendBtn" onclick="sendOtp()"'+((!F.email||otpState.sending)?' disabled':'')+'>'+(otpState.sending?'กำลังส่ง...':'ส่งรหัส OTP')+'</button>'
+        : '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+          + '<input id="otpInput" maxlength="6" inputmode="numeric" placeholder="กรอกรหัส 6 หลัก" style="width:140px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:15px;letter-spacing:3px;text-align:center">'
+          + '<button class="btn btn-sm btn-primary" onclick="verifyOtpInput()">ยืนยันรหัส</button>'
+          + '<button class="btn btn-sm" onclick="sendOtp()"'+(otpState.sending?' disabled':'')+'>ส่งใหม่</button>'
+          + '<span class="err-msg" id="otpErr"></span></div>'
+          + '<p style="font-size:11px;color:var(--muted);margin-top:6px">ส่งรหัสไปแล้ว กรุณาตรวจสอบกล่องอีเมล (รวมถึง Junk/Spam)</p>')
+    + '</div>';
 }
 function toggleAgree(ev){
   F.agreed = !F.agreed;
   var c=$('chkAgreed'); if(c) c.checked=F.agreed;
   clearErr('agreed');
+}
+function sendOtp(){
+  if(!F.email){ alert('กรุณากรอกอีเมลในขั้นตอนข้อมูลส่วนตัวก่อน'); return; }
+  otpState.sending = true; render();
+  apiRequestOtp(F.email).then(function(res){
+    otpState.sending = false;
+    if(res.ok){
+      otpState.sent = true; otpState.email = F.email; otpState.verified = false;
+      if(res.demo){ otpState.verified = true; }   // โหมดทดลองยืนยันทันที
+      render();
+      if(!res.demo) toast('ส่งรหัส OTP ไปที่อีเมลแล้ว');
+    } else {
+      render();
+      alert(res.message || ('ส่ง OTP ไม่สำเร็จ: '+(res.error||'')));
+    }
+  }).catch(function(err){
+    otpState.sending = false; render();
+    alert('ส่ง OTP ไม่สำเร็จ: '+err.message);
+  });
+}
+function verifyOtpInput(){
+  var inp=$('otpInput'); if(!inp) return;
+  var code = inp.value.trim();
+  if(!/^\d{6}$/.test(code)){ var e=$('otpErr'); if(e) e.textContent='กรอกรหัส 6 หลัก'; return; }
+  // เก็บ code ไว้ใช้ตอน submit (ตรวจจริงฝั่ง server) — ที่นี่แค่ทำเครื่องหมายว่ากรอกแล้ว
+  otpState.code = code; otpState.verified = true; otpState.email = F.email;
+  toast('พร้อมส่งใบสมัคร');
+  render();
 }
 function handlePhoto(inp){
   var f = inp.files[0]; if(!f) return;
@@ -703,20 +839,51 @@ function validate(){
   if(cur===1){
     if(!F.firstName){showErr('firstName','กรุณากรอกชื่อ');ok=false;}
     if(!F.lastName){showErr('lastName','กรุณากรอกนามสกุล');ok=false;}
-    if(!F.phone){showErr('phone','กรุณากรอกเบอร์โทร');ok=false;}
-    if(!F.email){showErr('email','กรุณากรอกอีเมล');ok=false;}
+    // ต้องมีช่องทางติดต่ออย่างน้อยหนึ่ง: เบอร์โทร หรือ อีเมล
+    if(!F.phone && !F.email){
+      showErr('phone','กรุณากรอกเบอร์โทร หรืออีเมล อย่างน้อยหนึ่งอย่าง');
+      showErr('email','กรุณากรอกอีเมล หรือเบอร์โทร อย่างน้อยหนึ่งอย่าง');
+      ok=false;
+    }
+    if(F.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(F.email.trim())){showErr('email','รูปแบบอีเมลไม่ถูกต้อง');ok=false;}
     if(!F.idCard){showErr('idCard','กรุณากรอกเลขบัตร');ok=false;}
     else if(!/^\d[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d$/.test(F.idCard.trim())){showErr('idCard','รูปแบบเลขบัตรไม่ถูกต้อง (13 หลัก)');ok=false;}
   }
   if(cur===STEPS.length-1){
     if(!F.agreed){showErr('agreed','กรุณายืนยันความถูกต้องของข้อมูล');ok=false;}
+    // OTP บังคับเฉพาะเมื่อกรอกอีเมล — ไม่มีอีเมลก็ส่งได้ (HR ยืนยันทางโทรศัพท์)
+    if(!isDemo() && F.email && !(otpState.verified && otpState.email===F.email)){
+      alert('กรุณายืนยันอีเมลด้วยรหัส OTP ก่อนส่งใบสมัคร\n(หากไม่ต้องการใช้อีเมล สามารถลบอีเมลออกแล้วใช้เบอร์โทรแทนได้)');
+      ok=false;
+    }
   }
   return ok;
 }
-function nextStep(){
-  if(!validate()) return;
+// ตรวจสมัครซ้ำเมื่อออกจากขั้นตอนข้อมูลส่วนตัว (ไม่บล็อกถ้า network ล้ม)
+function checkDupThenNext(){
+  if(isDemo()){ doNext(); return; }
+  var bn=$('btnNext'); if(bn){bn.disabled=true;bn.textContent='กำลังตรวจสอบ...';}
+  apiCheckDuplicate(F.idCard, F.email).then(function(res){
+    if(bn){bn.disabled=false;bn.textContent='ถัดไป →';}
+    if(res.ok && res.duplicate){
+      if(!confirm('พบใบสมัครที่ใช้เลขบัตรหรืออีเมลนี้แล้วในระบบ (เลขรับ '+res.duplicate+')\n\nหากต้องการอัปเดตข้อมูล กรุณาติดต่อฝ่าย HR โดยตรง\n\nกด OK เพื่อดำเนินการต่อ (ระบบจะปฏิเสธการส่งซ้ำ) หรือ Cancel เพื่อกลับไปแก้ไข')){
+        return;
+      }
+    }
+    doNext();
+  }).catch(function(){
+    if(bn){bn.disabled=false;bn.textContent='ถัดไป →';}
+    doNext();  // ถ้าตรวจไม่ได้ ปล่อยผ่าน (server จะกันซ้ำอีกชั้นตอน submit)
+  });
+}
+function doNext(){
   if(cur < STEPS.length-1){ cur++; render(); window.scrollTo(0,0); }
   else submitForm();
+}
+function nextStep(){
+  if(!validate()) return;
+  if(cur===1){ checkDupThenNext(); return; }   // หลังกรอกข้อมูลส่วนตัว → ตรวจสมัครซ้ำ
+  doNext();
 }
 function prevStep(){ if(cur>0){ cur--; render(); window.scrollTo(0,0); } }
 function goStep(i){ if(i<cur){ cur=i; render(); window.scrollTo(0,0); } }
@@ -726,14 +893,18 @@ function submitForm(){
   var record = {
     id:'', ts: new Date().toISOString(), status:'ใหม่', note:'',
     appts:{}, log:[],
+    emailVerified: !!(F.email && otpState.verified && otpState.email===F.email),
     data: JSON.parse(JSON.stringify(F)), photo: photoDataURL
   };
-  apiSubmit(record).then(function(rec){
+  apiSubmit(record, otpState.code).then(function(rec){
     lastSubmitted = rec;
+    otpState = { sent:false, verified:false, sending:false, email:'' };
     view='success'; render(); window.scrollTo(0,0);
   }).catch(function(err){
-    alert('ส่งใบสมัครไม่สำเร็จ: '+err.message+'\nกรุณาลองใหม่อีกครั้ง');
     if(bn){bn.disabled=false;bn.textContent='✓ ส่งใบสมัคร';}
+    if(err.code==='duplicate'){ alert(err.message); }
+    else if(err.code==='otp_invalid'){ otpState.verified=false; alert('รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาขอรหัสใหม่'); render(); }
+    else { alert('ส่งใบสมัครไม่สำเร็จ: '+err.message+'\nกรุณาลองใหม่อีกครั้ง'); }
   });
 }
 
@@ -746,17 +917,22 @@ function toggleHR(){
 function tryLogin(){
   var u=$('hrUser'), p=$('hrPass');
   if(!u||!p) return;
-  var acct = CONFIG.HR_USERS.filter(function(a){return a.user===u.value;})[0];
-  if(acct && p.value===acct.pass){
-    session = { user:acct.user, name:acct.name, ts:new Date().toISOString() };
-    if($('chkRemember') && $('chkRemember').checked){
-      localStorage.setItem('akr_hr_session', JSON.stringify(session));
+  var btn=$('loginBtn'); if(btn){btn.disabled=true;btn.textContent='กำลังเข้าสู่ระบบ...';}
+  var remember = $('chkRemember') && $('chkRemember').checked;
+  apiHrLogin(u.value, p.value).then(function(res){
+    if(res.ok){
+      session = { user:res.user, name:res.name, sid:res.sid };
+      if(remember) localStorage.setItem('akr_hr_session', JSON.stringify(session));
+      hrAuthed = true;
+      loadDashboard();
+    } else {
+      var e=$('loginErr'); if(e) e.textContent = res.error==='bad_credentials' ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' : ('เข้าสู่ระบบไม่สำเร็จ: '+(res.error||''));
+      if(btn){btn.disabled=false;btn.textContent='เข้าสู่ระบบ';}
     }
-    hrAuthed = true;
-    loadDashboard();
-  } else {
-    var e=$('loginErr'); if(e) e.textContent='ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-  }
+  }).catch(function(err){
+    var e=$('loginErr'); if(e) e.textContent='เชื่อมต่อระบบไม่สำเร็จ: '+err.message;
+    if(btn){btn.disabled=false;btn.textContent='เข้าสู่ระบบ';}
+  });
 }
 function logout(){
   if(!confirm('ลงชื่อออกจากระบบ HR?')) return;
@@ -766,8 +942,10 @@ function logout(){
 }
 function loadDashboard(){
   view='dashboard'; render();
-  Promise.all([apiList(), apiJobs()]).then(function(res){
-    records = res[0]||[]; jobs = res[1]||[]; render();
+  Promise.all([apiList(), apiJobs(), apiSettings()]).then(function(res){
+    records = res[0]||[]; jobs = res[1]||[];
+    if(res[2] && res[2].settings){ settings = res[2].settings; hrUsersList = res[2].hrUsers||[]; }
+    render();
   }).catch(function(err){ records=[]; render(); alert('โหลดข้อมูลไม่สำเร็จ: '+err.message); });
 }
 function loadHome(){
@@ -826,11 +1004,17 @@ function saveAppt(typeKey){
   if(!currentRec) return;
   var t = APPT_TYPES.filter(function(a){return a.k===typeKey;})[0];
   var dEl=$('appt_'+typeKey+'_date'), tmEl=$('appt_'+typeKey+'_time'), plEl=$('appt_'+typeKey+'_place'), ntEl=$('appt_'+typeKey+'_note');
+  // health: place มาจาก dropdown โรงพยาบาล
+  var place = plEl?plEl.value:'';
+  if(typeKey==='health'){
+    var hsel=$('appt_health_hospital');
+    if(hsel && hsel.value) place = hsel.value;
+  }
   if(!dEl || !dEl.value){ alert('กรุณาระบุวันที่นัดหมาย'); return; }
   currentRec.appts = currentRec.appts || {};
   currentRec.appts[typeKey] = {
-    date: dEl.value, time: tmEl?tmEl.value:'', place: plEl?plEl.value:'', note: ntEl?ntEl.value:'',
-    by: (session&&session.name)||'-', savedAt: new Date().toISOString()
+    date: dEl.value, time: tmEl?tmEl.value:'', place: place, note: ntEl?ntEl.value:'',
+    by: (session&&session.name)||'-', savedAt: new Date().toISOString(), notified:false
   };
   if(currentRec._editAppt) currentRec._editAppt[typeKey] = false;
   var entry = logEntry(t.l+' → '+dateTH(dEl.value)+(tmEl&&tmEl.value?' '+tmEl.value+' น.':''));
@@ -838,8 +1022,36 @@ function saveAppt(typeKey){
     currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
     records.forEach(function(r){ if(r.id===currentRec.id){ r.appts=currentRec.appts; r.log=currentRec.log; } });
     toast('บันทึก'+t.l+'แล้ว');
+    // เสนอส่งอีเมลแจ้งผู้สมัครทันที (ถ้ามีอีเมล)
+    var d = currentRec.data||{};
+    if(d.email){
+      if(confirm('บันทึกนัดหมายแล้ว\n\nต้องการส่งอีเมลแจ้ง '+t.l+' ถึงผู้สมัคร ('+d.email+') เลยหรือไม่?')){
+        sendApptEmail(typeKey);
+        return;
+      }
+    }
     render();
   }).catch(function(err){ alert('บันทึกนัดหมายไม่สำเร็จ: '+err.message); });
+}
+function sendApptEmail(typeKey){
+  if(!currentRec) return;
+  var t = APPT_TYPES.filter(function(a){return a.k===typeKey;})[0];
+  var ap = (currentRec.appts||{})[typeKey];
+  if(!ap){ alert('ยังไม่มีข้อมูลนัดหมาย'); return; }
+  var d = currentRec.data||{};
+  if(!d.email){ alert('ผู้สมัครไม่มีอีเมล — ใช้ปุ่ม "พิมพ์ใบนัด" เพื่อส่งทาง LINE หรือมอบให้ผู้สมัครแทน'); return; }
+  var applicant = { name:(d.firstName||'')+' '+(d.lastName||''), email:d.email, position:d.pos1||'' };
+  var appt = { date:ap.date, dateTH:dateTH(ap.date), time:ap.time, place:ap.place, note:ap.note };
+  apiNotifyAppt(applicant, typeKey, appt).then(function(res){
+    if(res.sent){
+      ap.notified = true;
+      var entry = logEntry('ส่งอีเมลแจ้ง'+t.l+'ถึงผู้สมัคร');
+      apiUpdate(currentRec.id, {appts:currentRec.appts, logEntry:entry}).then(function(){
+        currentRec.log=currentRec.log||[]; currentRec.log.push(entry);
+        toast('ส่งอีเมลแจ้งผู้สมัครแล้ว'); render();
+      });
+    } else { alert('ส่งอีเมลไม่สำเร็จ — ผู้สมัครอาจไม่มีอีเมล'); render(); }
+  }).catch(function(err){ alert('ส่งอีเมลไม่สำเร็จ: '+err.message); });
 }
 function clearAppt(typeKey){
   if(!currentRec || !currentRec.appts || !currentRec.appts[typeKey]) return;
@@ -888,6 +1100,7 @@ function deleteJob(id){
 }
 function applyJob(title){
   F = blankF(); photoDataURL=null; cur=0;
+  otpState = { sent:false, verified:false, sending:false, email:'' };
   F.pos1 = title || '';
   view='apply'; render(); window.scrollTo(0,0);
 }
@@ -902,17 +1115,15 @@ function toast(msg){
 
 // ─── Views ────────────────────────────────────────────────────────────
 function viewLogin(){
-  var opts = CONFIG.HR_USERS.map(function(a){
-    return '<option value="'+a.user+'">'+a.name+' ('+a.user+')</option>';
-  }).join('');
   return '<div class="login-box"><div style="font-size:28px;margin-bottom:8px">🔐</div>'
     + '<h2 style="font-size:16px;color:var(--primary);margin-bottom:4px">HR Dashboard</h2>'
     + '<p style="font-size:12px;color:var(--muted);margin-bottom:18px">สำหรับเจ้าหน้าที่ฝ่ายทรัพยากรบุคคลเท่านั้น</p>'
-    + '<select id="hrUser" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:8px">'+opts+'</select>'
-    + '<input type="password" id="hrPass" placeholder="รหัสผ่าน" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:6px" onkeydown="if(event.key===\'Enter\')tryLogin()">'
+    + '<input type="text" id="hrUser" placeholder="ชื่อผู้ใช้" autocomplete="username" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')$(\'hrPass\').focus()">'
+    + '<input type="password" id="hrPass" placeholder="รหัสผ่าน" autocomplete="current-password" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-bottom:6px" onkeydown="if(event.key===\'Enter\')tryLogin()">'
     + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:6px;cursor:pointer"><input type="checkbox" id="chkRemember" checked> จดจำการเข้าสู่ระบบในเครื่องนี้</label>'
     + '<div class="err-msg" id="loginErr" style="margin-bottom:10px;min-height:16px"></div>'
-    + '<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="tryLogin()">เข้าสู่ระบบ</button>'
+    + '<button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center" onclick="tryLogin()">เข้าสู่ระบบ</button>'
+    + (isDemo()?'<p style="font-size:11px;color:var(--warn);margin-top:12px;background:#fef9ec;padding:8px;border-radius:6px">โหมดทดลอง: ใช้ user <b>demo</b> / pass <b>demo</b></p>':'')
     + '<p style="font-size:10px;color:var(--muted);margin-top:14px">ทุกการเปลี่ยนสถานะและบันทึกจะระบุชื่อผู้ดำเนินการ<br>การเข้าถึงข้อมูลผู้สมัครอยู่ภายใต้นโยบายคุ้มครองข้อมูลส่วนบุคคล</p></div>';
 }
 // ─── หน้าแรก: ตำแหน่งงานที่เปิดรับ ─────────────────────────────────────
@@ -953,7 +1164,7 @@ function hrShell(content){
     {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
     {k:'settings',   icon:'⚙️', l:'ตั้งค่าระบบ'}
   ].map(function(m){
-    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
+    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
   }).join('');
   return '<div class="hr-layout">'
     + '<aside class="sidebar"><div class="side-user">'
@@ -995,12 +1206,16 @@ function viewApplicants(){
   var list = filteredRecords();
   var rows = list.map(function(r){
     var d=r.data||{};
-    var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    var opts = curStages().map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
     var who = lastScreener(r);
     var ap = nextAppt(r);
     return '<tr>'
       + '<td class="rec-no">'+esc(r.id)+'</td>'
-      + '<td><strong>'+esc(d.firstName)+' '+esc(d.lastName)+'</strong><br><span style="font-size:11px;color:var(--muted)">'+esc(d.phone||'')+'</span></td>'
+      + '<td><strong>'+esc(d.firstName)+' '+esc(d.lastName)+'</strong>'
+        + '<br><span style="font-size:11px;color:var(--muted)">'+esc(d.phone||d.email||'—')
+        + (d.email && r.emailVerified===false ? ' <span title="อีเมลยังไม่ยืนยัน" style="color:var(--warn)">●</span>' : '')
+        + (!d.email ? ' <span title="ไม่มีอีเมล ติดต่อทางโทรศัพท์" style="color:var(--primary)">☎</span>' : '')
+        + '</span></td>'
       + '<td>'+esc(d.pos1||'-')+'</td>'
       + '<td style="font-size:12px">'+dateTH(r.ts)+'</td>'
       + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span>'+(ap?'<br><span style="font-size:10px;color:var(--muted)">'+ap+'</span>':'')+'</td>'
@@ -1063,20 +1278,129 @@ function viewJobsAdmin(){
 }
 // ─── Settings ────────────────────────────────────────────────────────
 function viewSettings(){
-  var userRows = CONFIG.HR_USERS.map(function(a){
-    return '<tr><td>'+esc(a.name)+'</td><td style="font-family:monospace">'+esc(a.user)+'</td>'
-      + '<td>'+(session&&session.user===a.user?'<span class="status-pill st-ผ่าน">กำลังใช้งาน</span>':'')+'</td></tr>';
+  if(!settings) settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  var tabs = [
+    {k:'company', l:'🏢 ข้อมูลบริษัท'},
+    {k:'hospitals', l:'🏥 โรงพยาบาล'},
+    {k:'stages', l:'📋 ขั้นตอนคัดเลือก'},
+    {k:'templates', l:'✉️ ข้อความอีเมล'},
+    {k:'accounts', l:'👥 บัญชี HR'}
+  ];
+  var tabBar = '<div class="settings-tabs">'+tabs.map(function(t){
+    return '<div class="settings-tab'+(settingsTab===t.k?' on':'')+'" onclick="settingsTab=\''+t.k+'\';render()">'+t.l+'</div>';
+  }).join('')+'</div>';
+  var body='';
+  if(settingsTab==='company') body=settingsCompany();
+  else if(settingsTab==='hospitals') body=settingsHospitals();
+  else if(settingsTab==='stages') body=settingsStages();
+  else if(settingsTab==='templates') body=settingsTemplates();
+  else if(settingsTab==='accounts') body=settingsAccounts();
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">⚙️ ตั้งค่าระบบ</h2>'
+    + (isDemo()?'<span class="mode-tag" style="margin-left:10px">โหมดทดลอง — บันทึกในเครื่องนี้</span>':'')
+    + '</div>'+tabBar+'<div style="margin-top:14px">'+body+'</div>';
+}
+function settingsCompany(){
+  var c = settings.company||{};
+  return '<div class="card"><div class="card-header"><div class="icon">🏢</div><h2>ข้อมูลบริษัท</h2><small>ใช้ในใบนัดหมาย อีเมล และเอกสารพิมพ์</small></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-group"><label><span class="th">ชื่อบริษัท</span></label><input value="'+val(c.name)+'" oninput="settings.company.name=this.value"></div>'
+    + '<div class="form-group"><label><span class="th">สถานที่ / ที่ตั้ง</span></label><input value="'+val(c.site)+'" oninput="settings.company.site=this.value"></div>'
+    + '<div class="form-grid g2">'
+    + '<div class="form-group"><label><span class="th">เบอร์ติดต่อ HR</span></label><input value="'+val(c.hrPhone)+'" placeholder="0xx-xxx-xxxx" oninput="settings.company.hrPhone=this.value"></div>'
+    + '<div class="form-group"><label><span class="th">อีเมล HR (แสดงในเอกสาร)</span></label><input value="'+val(c.hrEmail)+'" oninput="settings.company.hrEmail=this.value"></div>'
+    + '</div></div>'
+    + '<div style="margin-top:14px"><button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button></div></div>';
+}
+function settingsHospitals(){
+  var list = settings.hospitals||[];
+  var rows = list.map(function(h,i){
+    return '<tr><td><input value="'+val(h.name)+'" oninput="settings.hospitals['+i+'].name=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td><input value="'+val(h.address)+'" oninput="settings.hospitals['+i+'].address=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td><input value="'+val(h.phone)+'" oninput="settings.hospitals['+i+'].phone=this.value" style="width:110px;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td><button class="btn btn-sm" style="color:var(--danger)" onclick="settings.hospitals.splice('+i+',1);render()">ลบ</button></td></tr>';
   }).join('');
-  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">⚙️ ตั้งค่าระบบ</h2></div>'
-    + '<div class="card"><div class="card-header"><div class="icon">🔗</div><h2>การเชื่อมต่อ</h2></div>'
-    + '<dl class="detail-grid">'
-    + '<dt>โหมดการทำงาน</dt><dd>'+(isDemo()?'<span class="status-pill st-คัดกรอง">ทดลอง (localStorage)</span>':'<span class="status-pill st-ผ่าน">เชื่อมต่อฐานข้อมูลกลาง</span>')+'</dd>'
-    + '<dt>แบบฟอร์ม</dt><dd>'+CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev+' (Effective '+CONFIG.DOC.effective+')</dd>'
-    + '<dt>อีเมลแจ้งเตือน</dt><dd>ตั้งค่าที่ HR_EMAIL ในไฟล์ backend (Code.gs) — ส่งอัตโนมัติเมื่อมีใบสมัครใหม่</dd>'
-    + '</dl></div>'
-    + '<div class="card"><div class="card-header"><div class="icon">👥</div><h2>เจ้าหน้าที่ HR ('+CONFIG.HR_USERS.length+' คน)</h2></div>'
-    + '<table class="ats-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้</th><th></th></tr></thead><tbody>'+userRows+'</tbody></table>'
-    + '<p style="font-size:11px;color:var(--muted);margin-top:10px">เพิ่ม/แก้ไขบัญชีและรหัสผ่านได้ที่ CONFIG.HR_USERS ในไฟล์ระบบ ทุกการเปลี่ยนสถานะ บันทึก และนัดหมาย จะระบุชื่อผู้ดำเนินการพร้อมเวลาใน Activity Log ของผู้สมัครแต่ละราย</p></div>';
+  var table = list.length
+    ? '<table class="ats-table"><thead><tr><th>ชื่อโรงพยาบาล</th><th>ที่อยู่</th><th>โทรศัพท์</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ยังไม่มีรายชื่อโรงพยาบาล — กด "เพิ่มโรงพยาบาล" เพื่อให้เลือกได้ตอนนัดตรวจสุขภาพ</div>';
+  return '<div class="card"><div class="card-header"><div class="icon">🏥</div><h2>รายชื่อโรงพยาบาลตรวจสุขภาพ</h2><small>จะปรากฏเป็นตัวเลือก dropdown ตอนนัดตรวจสุขภาพ</small></div>'
+    + table
+    + '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-sm" onclick="settings.hospitals=settings.hospitals||[];settings.hospitals.push({name:\'\',address:\'\',phone:\'\'});render()">➕ เพิ่มโรงพยาบาล</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 บันทึก</button></div></div>';
+}
+function settingsStages(){
+  var list = settings.stages||[];
+  var rows = list.map(function(s,i){
+    var locked = (s==='ใหม่');  // กันลบสถานะเริ่มต้น
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
+      + '<span style="color:var(--muted);width:20px">'+(i+1)+'.</span>'
+      + '<input value="'+val(s)+'" '+(locked?'disabled':'')+' oninput="settings.stages['+i+']=this.value" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:6px 10px'+(locked?';background:#f0f0f0':'')+'">'
+      + (locked?'<span style="font-size:11px;color:var(--muted)">สถานะเริ่มต้น</span>'
+              :'<button class="btn btn-sm" onclick="settings.stages.splice('+i+',1);render()">ลบ</button>')
+      + '</div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">📋</div><h2>ขั้นตอนการคัดเลือก</h2><small>สถานะที่ใช้ติดตามผู้สมัคร (เรียงตามลำดับ)</small></div>'
+    + '<div class="alert alert-warn" style="font-size:12px">⚠ การลบหรือเปลี่ยนชื่อสถานะที่มีผู้สมัครใช้อยู่ อาจทำให้ผู้สมัครเดิมแสดงสถานะไม่ตรง แนะนำเพิ่มสถานะใหม่มากกว่าลบของเดิม</div>'
+    + rows
+    + '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-sm" onclick="settings.stages.push(\'สถานะใหม่\');render()">➕ เพิ่มสถานะ</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 บันทึก</button></div></div>';
+}
+function settingsTemplates(){
+  var tk = settings._tplTab || 'interview';
+  var tpl = (settings.emailTemplates&&settings.emailTemplates[tk])||{subject:'',body:''};
+  var sub = APPT_TYPES.map(function(t){
+    return '<div class="settings-tab'+(tk===t.k?' on':'')+'" style="font-size:12px" onclick="settings._tplTab=\''+t.k+'\';render()">'+t.icon+' '+t.l+'</div>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">✉️</div><h2>ข้อความอีเมลถึงผู้สมัคร</h2><small>เนื้อหาที่ส่งเมื่อนัดหมายแต่ละประเภท</small></div>'
+    + '<div class="settings-tabs" style="margin-bottom:12px">'+sub+'</div>'
+    + '<div class="alert alert-info" style="font-size:12px">ใช้ตัวแปรแทนค่าได้: <code>{name}</code> ชื่อผู้สมัคร, <code>{position}</code> ตำแหน่ง, <code>{date}</code> วันที่, <code>{time}</code> เวลา, <code>{place}</code> สถานที่, <code>{company}</code> ชื่อบริษัท, <code>{hrPhone}</code> เบอร์ HR</div>'
+    + '<div class="form-group"><label><span class="th">หัวข้ออีเมล (Subject)</span></label><input value="'+val(tpl.subject)+'" oninput="settings.emailTemplates[\''+tk+'\'].subject=this.value"></div>'
+    + '<div class="form-group" style="margin-top:10px"><label><span class="th">เนื้อหา</span></label><textarea style="min-height:200px;font-family:inherit" oninput="settings.emailTemplates[\''+tk+'\'].body=this.value">'+val(tpl.body)+'</textarea></div>'
+    + '<div style="margin-top:12px"><button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button></div></div>';
+}
+function settingsAccounts(){
+  if(isDemo()){
+    return '<div class="card"><div class="card-header"><div class="icon">👥</div><h2>บัญชี HR</h2></div>'
+      + '<div class="alert alert-warn" style="font-size:12px">การจัดการบัญชี HR ใช้ได้เฉพาะเมื่อเชื่อมต่อ backend จริง (ไม่ใช่โหมดทดลอง)</div></div>';
+  }
+  var list = hrUsersList||[];
+  hrEdits = hrEdits || list.map(function(u){return {user:u.user,name:u.name,pass:''};});
+  var rows = hrEdits.map(function(u,i){
+    var isSelf = session && session.user===u.user;
+    return '<tr><td><input value="'+val(u.name)+'" oninput="hrEdits['+i+'].name=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td><input value="'+val(u.user)+'" '+(isSelf?'disabled':'')+' oninput="hrEdits['+i+'].user=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:monospace'+(isSelf?';background:#f0f0f0':'')+'"></td>'
+      + '<td><input type="text" placeholder="'+(u._isNew?'ตั้งรหัส':'เว้นว่าง = ไม่เปลี่ยน')+'" oninput="hrEdits['+i+'].pass=this.value" style="width:130px;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td>'+(isSelf?'<span style="font-size:11px;color:var(--muted)">บัญชีคุณ</span>':'<button class="btn btn-sm" style="color:var(--danger)" onclick="hrEdits.splice('+i+',1);render()">ลบ</button>')+'</td></tr>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">👥</div><h2>จัดการบัญชีเจ้าหน้าที่ HR</h2><small>เพิ่ม / ลบ / เปลี่ยนรหัสผ่าน</small></div>'
+    + '<table class="ats-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้ (login)</th><th>รหัสผ่านใหม่</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div class="alert alert-warn" style="font-size:12px;margin-top:10px">ช่องรหัสผ่าน: เว้นว่างไว้ = ใช้รหัสเดิม / กรอก = เปลี่ยนเป็นรหัสใหม่ — รหัสจัดเก็บฝั่งเซิร์ฟเวอร์ ไม่แสดงรหัสเดิมเพื่อความปลอดภัย</div>'
+    + '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-sm" onclick="hrEdits.push({user:\'\',name:\'\',pass:\'\',_isNew:true});render()">➕ เพิ่มบัญชี HR</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveHrAccounts()">💾 บันทึกบัญชี</button></div></div>';
+}
+function saveSettings(){
+  apiSaveSettings(settings).then(function(){ toast('บันทึกการตั้งค่าแล้ว'); })
+    .catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+var hrEdits = null;
+function saveHrAccounts(){
+  // ตรวจความถูกต้อง
+  for(var i=0;i<hrEdits.length;i++){
+    if(!hrEdits[i].user || !hrEdits[i].name){ alert('กรุณากรอกชื่อและชื่อผู้ใช้ให้ครบทุกบัญชี'); return; }
+    if(hrEdits[i]._isNew && !hrEdits[i].pass){ alert('บัญชีใหม่ "'+hrEdits[i].name+'" ต้องตั้งรหัสผ่าน'); return; }
+  }
+  if(!confirm('บันทึกการเปลี่ยนแปลงบัญชี HR?\n\nบัญชีที่ลบจะไม่สามารถเข้าระบบได้ทันที')) return;
+  // ส่งเฉพาะ field ที่จำเป็น: ถ้า pass ว่าง backend จะเก็บรหัสเดิม (ส่ง flag keepPass)
+  var payload = hrEdits.map(function(u){
+    var o = { user:u.user, name:u.name };
+    if(u.pass) o.pass = u.pass; else o.keepPass = true;
+    return o;
+  });
+  apiSaveHrUsers(payload).then(function(){
+    toast('บันทึกบัญชี HR แล้ว');
+    hrEdits = null;
+    // refresh list
+    apiSettings().then(function(res){ if(res.hrUsers) hrUsersList=res.hrUsers; render(); });
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
 function renderTableOnly(){
   var w=$('atsTableWrap'); if(!w) return;
@@ -1091,31 +1415,66 @@ function buildApptSection(r){
     hint = '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">เปลี่ยนสถานะเป็น "นัดสัมภาษณ์" หรือ "ผ่าน" เพื่อดำเนินการนัดหมายขั้นตอนถัดไป (บันทึกล่วงหน้าได้)</p>';
   }
   r._editAppt = r._editAppt || {};
+  var d = r.data||{};
+  var hasEmail = !!d.email;
   var cards = APPT_TYPES.map(function(t){
     var a = (r.appts||{})[t.k];
     var editing = r._editAppt[t.k];
     if(a && a.date && !editing){
+      var notifyBtn = hasEmail
+        ? '<button class="btn btn-sm '+(a.notified?'':'btn-primary')+'" onclick="sendApptEmail(\''+t.k+'\')">'+(a.notified?'✓ ส่งอีเมลแล้ว — ส่งซ้ำ':'✉ ส่งอีเมลแจ้งผู้สมัคร')+'</button>'
+        : '<span style="font-size:11px;color:var(--muted);align-self:center">ผู้สมัครไม่มีอีเมล</span>';
       return '<div class="appt-card set"><div class="appt-head"><span>'+t.icon+' '+t.l+'</span><span class="status-pill st-ผ่าน">นัดแล้ว</span></div>'
         + '<div class="appt-body"><strong style="font-size:15px">'+dateTH(a.date)+(a.time?' เวลา '+esc(a.time)+' น.':'')+'</strong>'
         + (a.place?'<br>📍 '+esc(a.place):'')
         + (a.note?'<br><span style="color:var(--muted)">'+esc(a.note)+'</span>':'')
-        + '<br><span style="font-size:10px;color:var(--muted)">บันทึกโดย '+esc(a.by||'-')+'</span></div>'
-        + '<div style="display:flex;gap:6px;margin-top:8px">'
+        + '<br><span style="font-size:10px;color:var(--muted)">บันทึกโดย '+esc(a.by||'-')+(a.notified?' · แจ้งผู้สมัครแล้ว':'')+'</span></div>'
+        + '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+        + notifyBtn
+        + '<button class="btn btn-sm btn-outline" onclick="printApptSlip(\''+t.k+'\')">🖨 พิมพ์ใบนัด</button>'
         + '<button class="btn btn-sm" onclick="editAppt(\''+t.k+'\')">แก้ไข</button>'
-        + '<button class="btn btn-sm" style="color:var(--danger)" onclick="clearAppt(\''+t.k+'\')">ยกเลิกนัด</button></div></div>';
+        + '<button class="btn btn-sm" style="color:var(--danger)" onclick="clearAppt(\''+t.k+'\')">ยกเลิก</button></div></div>';
     }
     var pre = a||{};
+    // ช่องสถานที่: health = dropdown โรงพยาบาล + ช่องกรอกเอง, อื่นๆ = input ปกติ
+    var placeField;
+    if(t.k==='health'){
+      var hospitals = (settings&&settings.hospitals)||[];
+      var opts = '<option value="">— เลือกโรงพยาบาล —</option>'
+        + hospitals.map(function(h){
+            var label = h.name + (h.phone?' ('+h.phone+')':'');
+            return '<option value="'+esc(h.name)+'"'+(pre.place===h.name?' selected':'')+'>'+esc(label)+'</option>';
+          }).join('')
+        + '<option value="__custom__">+ ระบุสถานที่อื่น</option>';
+      placeField = '<div class="form-group" style="margin-top:8px"><label><span class="th">สถานที่ตรวจ (โรงพยาบาล)</span></label>'
+        + '<select id="appt_health_hospital" onchange="onHospitalChange(this)">'+opts+'</select>'
+        + (hospitals.length?'':'<span style="font-size:11px;color:var(--warn)">ยังไม่มีรายชื่อโรงพยาบาล — เพิ่มได้ที่เมนูตั้งค่า → โรงพยาบาล</span>')
+        + '<input id="appt_health_place" value="'+val(pre.place)+'" placeholder="หรือพิมพ์สถานที่เอง" style="margin-top:6px'+((pre.place && !hospitalKnown(pre.place))?'':';display:none')+'"></div>';
+    } else {
+      placeField = '<div class="form-group" style="margin-top:8px"><label><span class="th">สถานที่</span></label><input id="appt_'+t.k+'_place" value="'+val(pre.place)+'" placeholder="เช่น ห้องประชุม HR / สำนักงานใหญ่"></div>';
+    }
     return '<div class="appt-card"><div class="appt-head"><span>'+t.icon+' '+t.l+'</span></div>'
       + '<div class="form-grid g2" style="margin-top:8px;gap:8px">'
       + '<div class="form-group"><label><span class="th">วันที่</span></label><input type="date" id="appt_'+t.k+'_date" value="'+val(pre.date)+'"></div>'
       + '<div class="form-group"><label><span class="th">เวลา</span></label><input type="time" id="appt_'+t.k+'_time" value="'+val(pre.time)+'"></div></div>'
-      + '<div class="form-group" style="margin-top:8px"><label><span class="th">สถานที่</span></label><input id="appt_'+t.k+'_place" value="'+val(pre.place)+'" placeholder="เช่น ห้องประชุม HR / รพ.พิจิตร"></div>'
+      + placeField
       + '<div class="form-group" style="margin-top:8px"><label><span class="th">หมายเหตุ</span></label><input id="appt_'+t.k+'_note" value="'+val(pre.note)+'" placeholder="เอกสารที่ต้องนำมา ฯลฯ"></div>'
       + '<div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveAppt(\''+t.k+'\')">บันทึกนัดหมาย</button>'
       + (editing?'<button class="btn btn-sm" onclick="currentRec._editAppt[\''+t.k+'\']=false;render()">ยกเลิก</button>':'')
       + '</div></div>';
   }).join('');
   return '<div class="section-label" style="margin-top:14px">การนัดหมาย Appointments</div>'+hint+'<div class="appt-grid">'+cards+'</div>';
+}
+function hospitalKnown(name){
+  var hospitals = (settings&&settings.hospitals)||[];
+  return hospitals.some(function(h){return h.name===name;});
+}
+function onHospitalChange(sel){
+  var custom = $('appt_health_place');
+  if(!custom) return;
+  if(sel.value==='__custom__'){ custom.style.display=''; custom.value=''; custom.focus(); }
+  else if(sel.value===''){ custom.style.display='none'; }
+  else { custom.style.display='none'; custom.value=sel.value; }
 }
 function editAppt(typeKey){
   if(!currentRec) return;
@@ -1168,7 +1527,7 @@ function viewDetail(){
     var v=(d.pdpa||{})[it.k];
     return '<span class="status-pill '+(v===true?'st-ผ่าน':v===false?'st-ไม่ผ่าน':'st-คัดกรอง')+'" style="margin-right:6px">ข้อ '+(i+1)+': '+(v===true?'ยินยอม':v===false?'ไม่ยินยอม':'ไม่ระบุ')+'</span>';
   }).join('');
-  var opts = STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var opts = curStages().map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>';}).join('');
   return hrShell('<div class="toolbar">'
     + '<button class="btn btn-sm" onclick="view=\'dashboard\';render()">← กลับทะเบียน</button>'
     + '<div style="margin-left:auto;display:flex;gap:8px">'
@@ -1183,7 +1542,7 @@ function viewDetail(){
     + '<dt>เงินเดือนที่คาดหวัง</dt><dd>'+esc(d.salary||'-')+' บาท</dd>'
     + '<dt>วันเกิด</dt><dd>'+dateTH(d.dob)+'</dd>'
     + '<dt>โทรศัพท์</dt><dd>'+esc(d.phone||'-')+'</dd>'
-    + '<dt>อีเมล</dt><dd>'+esc(d.email||'-')+'</dd>'
+    + '<dt>อีเมล</dt><dd>'+(d.email ? esc(d.email)+(r.emailVerified===false?' <span class="status-pill st-คัดกรอง">ยังไม่ยืนยัน</span>':' <span class="status-pill st-ผ่าน">ยืนยันแล้ว</span>') : '<span style="color:var(--muted)">ไม่มีอีเมล — ติดต่อทางโทรศัพท์</span>')+'</dd>'
     + '<dt>Line ID</dt><dd>'+esc(d.lineId||'-')+'</dd>'
     + '<dt>สถานะทหาร</dt><dd>'+(milLabel(d.military)||'-')+'</dd>'
     + '<dt>วันที่สมัคร</dt><dd>'+dateTH(r.ts)+'</dd>'
@@ -1221,6 +1580,7 @@ function viewSuccess(){
 }
 function startNew(){
   F = blankF(); photoDataURL=null; cur=0; lastSubmitted=null;
+  otpState = { sent:false, verified:false, sending:false, email:'' };
   view='home'; loadHome(); window.scrollTo(0,0);
 }
 
@@ -1333,6 +1693,39 @@ function buildPrintDoc(rec){
     + ppFooter(3, recId) + '</div>';
 
   return p1 + p2 + p3;
+}
+function printApptSlip(typeKey){
+  if(!currentRec) return;
+  var t = APPT_TYPES.filter(function(a){return a.k===typeKey;})[0];
+  var a = (currentRec.appts||{})[typeKey];
+  if(!a){ alert('ยังไม่มีข้อมูลนัดหมาย'); return; }
+  var d = currentRec.data||{};
+  var co = (settings&&settings.company)||DEFAULT_SETTINGS.company;
+  var name = (d.firstName||'')+' '+(d.lastName||'');
+  var fast = (typeKey==='health') ? '<p style="margin-top:3mm;color:#b00">⚠ กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง</p>' : '';
+  var slip = '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
+    + ppHead()
+    + '<div class="pp-title" style="margin-bottom:4mm">ใบนัดหมาย '+t.l+'<br><span style="font-size:9pt;font-weight:400">Appointment Notice</span></div>'
+    + '<table style="width:100%;font-size:11pt;border:none"><tr><td style="border:none;padding:2mm 0">เลขรับเอกสาร</td><td style="border:none;padding:2mm 0"><b>'+esc(currentRec.id)+'</b></td></tr>'
+    + '<tr><td style="border:none;padding:2mm 0">เรียน</td><td style="border:none;padding:2mm 0"><b>'+esc(name)+'</b></td></tr>'
+    + '<tr><td style="border:none;padding:2mm 0">ตำแหน่งที่สมัคร</td><td style="border:none;padding:2mm 0">'+esc(d.pos1||'-')+'</td></tr></table>'
+    + '<div style="border:1.5pt solid #1a4f8a;border-radius:3mm;padding:5mm;margin-top:4mm;background:#f4f8fd">'
+    + '<table style="width:100%;font-size:12pt;border:none">'
+    + '<tr><td style="border:none;padding:2mm 0;width:30mm">📅 วันที่</td><td style="border:none;padding:2mm 0"><b>'+dateTH(a.date)+'</b></td></tr>'
+    + '<tr><td style="border:none;padding:2mm 0">🕐 เวลา</td><td style="border:none;padding:2mm 0"><b>'+(esc(a.time)||'-')+' น.</b></td></tr>'
+    + '<tr><td style="border:none;padding:2mm 0;vertical-align:top">📍 สถานที่</td><td style="border:none;padding:2mm 0"><b>'+(esc(a.place)||'-')+'</b></td></tr>'
+    + (a.note?'<tr><td style="border:none;padding:2mm 0;vertical-align:top">📝 หมายเหตุ</td><td style="border:none;padding:2mm 0">'+esc(a.note)+'</td></tr>':'')
+    + '</table></div>'
+    + fast
+    + '<p style="margin-top:4mm;font-size:10pt">กรุณานำบัตรประชาชนและเอกสารที่เกี่ยวข้องมาในวันนัดหมาย หากมีข้อสงสัยหรือต้องการเปลี่ยนแปลงนัดหมาย กรุณาติดต่อ '+esc(co.hrPhone||co.hrEmail||'ฝ่ายทรัพยากรบุคคล')+'</p>'
+    + '<p style="margin-top:8mm;font-size:10pt">ขอแสดงความนับถือ<br><b>ฝ่ายทรัพยากรบุคคล</b><br>'+esc(co.name||'')+'<br>'+esc(co.site||'')+'</p>'
+    + '<div class="pp-footer" style="margin-top:10mm"><span><b>'+CONFIG.DOC.no+'</b> ใบนัดหมาย</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(currentRec.id)+'</span></div>'
+    + '</div>';
+  var pa = $('printArea');
+  pa.innerHTML = slip;
+  document.body.classList.remove('preview-mode');
+  document.body.classList.add('printing');
+  setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 120);
 }
 function printRecord(rec){
   if(!rec){ alert('ไม่พบข้อมูลสำหรับพิมพ์'); return; }
