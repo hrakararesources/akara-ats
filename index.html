@@ -502,7 +502,7 @@ function apiSubmit(record, otp){
 }
 function apiList(){
   if(isDemo()){ return Promise.resolve(lsLoad()); }
-  return apiGet('action=list&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
+  return apiPost({action:'list'})
     .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(mapErr_(res)); } return res.records; });
 }
 function mapErr_(res){
@@ -555,7 +555,7 @@ function nextJobNo(arr){
 }
 function apiJobs(){
   if(isDemo()){ return Promise.resolve(jobsLoadLS()); }
-  return apiGet('action=jobs&token='+encodeURIComponent(CONFIG.API_TOKEN))
+  return apiPost({action:'jobs'})
     .then(function(res){ if(!res.ok) throw new Error(mapErr_(res)); return res.jobs; });
 }
 function apiSaveJob(job){
@@ -594,7 +594,7 @@ function apiSettings(){
     var s = settingsLoadLS() || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
     return Promise.resolve({ok:true, settings:s, hrUsers:DEMO_HR.map(function(u){return {user:u.user,name:u.name};})});
   }
-  return apiGet('action=settings&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
+  return apiPost({action:'settings'})
     .then(function(res){ if(!res.ok) throw new Error(mapErr_(res)); return res; });
 }
 function apiSaveSettings(s){
