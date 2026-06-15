@@ -173,6 +173,36 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
 .otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
+/* Reports Center */
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:16px}
+.report-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px 20px;text-align:center;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;transition:transform .12s,box-shadow .12s}
+.report-card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.1)}
+.rc-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:14px}
+.rc-icon-blue{background:#e8f0fb}.rc-icon-green{background:#e8f8f0}.rc-icon-amber{background:#fef6e0}.rc-icon-purple{background:#f3e8fb}.rc-icon-dark{background:#e9ecf1}
+.rc-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px}
+.rc-desc{font-size:12px;color:var(--muted);line-height:1.6;flex:1;margin-bottom:16px}
+.rc-btn{width:100%;padding:10px;border-radius:8px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:#fff;transition:filter .12s}
+.rc-btn:hover{filter:brightness(.93)}
+.rc-btn-blue{background:#2563eb}.rc-btn-green{background:#1a9a5a}.rc-btn-amber{background:#e0a020}.rc-btn-purple{background:#8e44ad}.rc-btn-dark{background:#1e2a3a}
+.report-filter{display:flex;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px}
+.report-filter label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+.report-filter select,.report-filter input{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px}
+.report-head-print{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--primary-light)}
+.stat-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.stat-box{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;box-shadow:var(--shadow)}
+.stat-box-num{font-size:28px;font-weight:700;color:var(--primary)}
+.stat-box-lbl{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.stat-bar-label{width:90px;font-size:12px;flex-shrink:0}
+.stat-bar-track{flex:1;height:18px;background:#eef1f5;border-radius:9px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:9px;background:var(--primary);transition:width .3s}
+.st-fill-ใหม่{background:#2980b9}.st-fill-คัดกรอง{background:#b07d10}.st-fill-นัดสัมภาษณ์{background:#8e44ad}.st-fill-ผ่าน{background:#1a7a4a}.st-fill-ไม่ผ่าน{background:#c0392b}
+.stat-bar-val{width:80px;font-size:12px;text-align:right;flex-shrink:0;color:var(--muted)}
+@media print{
+  .report-print-wrap{padding:10mm}
+  .report-print-wrap .ats-table{font-size:10pt}
+  .report-print-wrap .ats-table th{background:#1a4f8a!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 .settings-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--border)}
 .settings-tab{padding:8px 14px;font-size:13px;cursor:pointer;border-radius:6px 6px 0 0;color:var(--muted);border:1px solid transparent;border-bottom:none;margin-bottom:-2px}
 .settings-tab:hover{background:var(--bg)}
@@ -293,6 +323,9 @@ var otpState = { sent:false, verified:false, sending:false, email:'' };  // OTP 
 var settings = null;          // {company, stages, hospitals, emailTemplates}
 var hrUsersList = [];         // รายชื่อ HR (สำหรับหน้าตั้งค่า)
 var settingsTab = 'company';  // company | stages | hospitals | templates | accounts
+var reportView = null;        // null = หน้าการ์ดรวม | summary | jobsrep | appointments | stats | bulkslip
+var reportFilter = { status:'', position:'', from:'', to:'' };
+var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
   company:{ name:'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)', site:'Chatree Gold Mine, จ.พิจิตร', hrPhone:'', hrEmail:'' },
   stages:['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'],
@@ -395,9 +428,32 @@ function apiPost(payload){
   if(session && session.sid) payload.sid = session.sid;
   return fetch(CONFIG.API_URL, {
     method:'POST',
+    redirect:'follow',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify(payload)
-  }).then(function(r){return r.json();});
+  }).then(parseApiResponse_).catch(function(err){ throw netError_(err); });
+}
+function apiGet(qs){
+  return fetch(CONFIG.API_URL + '?' + qs, { method:'GET', redirect:'follow' })
+    .then(parseApiResponse_).catch(function(err){ throw netError_(err); });
+}
+function parseApiResponse_(r){
+  return r.text().then(function(t){
+    try { return JSON.parse(t); }
+    catch(e){
+      if(t.indexOf('<')===0 || /sign in|authoriz|accounts\.google/i.test(t)){
+        throw new Error('เซิร์ฟเวอร์ตอบกลับเป็นหน้าเว็บ ไม่ใช่ข้อมูล — ตรวจว่า Deploy ตั้ง "Who has access" เป็น Anyone และใช้ URL ที่ลงท้าย /exec');
+      }
+      throw new Error('รูปแบบข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง');
+    }
+  });
+}
+function netError_(err){
+  var msg = String(err && err.message || err);
+  if(/failed to fetch|networkerror|load failed|typeerror/i.test(msg)){
+    return new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจ: (1) URL ใน CONFIG.API_URL ถูกต้องและลงท้าย /exec (2) Deploy เป็น Web app สิทธิ์ Anyone (3) ปิดส่วนขยายเบราว์เซอร์/ad-blocker แล้วลองใหม่ (4) อินเทอร์เน็ต');
+  }
+  return err instanceof Error ? err : new Error(msg);
 }
 function handleSessionError(res){
   if(res && (res.error==='session_expired')){
@@ -446,9 +502,14 @@ function apiSubmit(record, otp){
 }
 function apiList(){
   if(isDemo()){ return Promise.resolve(lsLoad()); }
-  return fetch(CONFIG.API_URL + '?action=list&sid='+encodeURIComponent(session&&session.sid||''))
-    .then(function(r){return r.json();})
-    .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(res.error||'list failed'); } return res.records; });
+  return apiGet('action=list&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
+    .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(mapErr_(res)); } return res.records; });
+}
+function mapErr_(res){
+  var e = res.error||'';
+  if(e==='session_expired') return 'session_expired';
+  if(e==='unauthorized') return 'token ไม่ตรงกับ Script Properties (API_TOKEN)';
+  return res.message || e || 'failed';
 }
 // HR login ผ่าน server
 function apiHrLogin(user, pass){
@@ -494,9 +555,8 @@ function nextJobNo(arr){
 }
 function apiJobs(){
   if(isDemo()){ return Promise.resolve(jobsLoadLS()); }
-  return fetch(CONFIG.API_URL + '?action=jobs&token='+encodeURIComponent(CONFIG.API_TOKEN))
-    .then(function(r){return r.json();})
-    .then(function(res){ if(!res.ok) throw new Error(res.error||'jobs failed'); return res.jobs; });
+  return apiGet('action=jobs&token='+encodeURIComponent(CONFIG.API_TOKEN))
+    .then(function(res){ if(!res.ok) throw new Error(mapErr_(res)); return res.jobs; });
 }
 function apiSaveJob(job){
   if(isDemo()){
@@ -534,9 +594,8 @@ function apiSettings(){
     var s = settingsLoadLS() || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
     return Promise.resolve({ok:true, settings:s, hrUsers:DEMO_HR.map(function(u){return {user:u.user,name:u.name};})});
   }
-  return fetch(CONFIG.API_URL + '?action=settings&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
-    .then(function(r){return r.json();})
-    .then(function(res){ if(!res.ok) throw new Error(res.error||'settings failed'); return res; });
+  return apiGet('action=settings&token='+encodeURIComponent(CONFIG.API_TOKEN)+'&sid='+encodeURIComponent(session&&session.sid||''))
+    .then(function(res){ if(!res.ok) throw new Error(mapErr_(res)); return res; });
 }
 function apiSaveSettings(s){
   if(isDemo()){ settingsSaveLS(s); return Promise.resolve(true); }
@@ -942,12 +1001,27 @@ function logout(){
 }
 function loadDashboard(){
   view='dashboard'; render();
-  Promise.all([apiList(), apiJobs(), apiSettings()]).then(function(res){
-    records = res[0]||[]; jobs = res[1]||[];
-    if(res[2] && res[2].settings){ settings = res[2].settings; hrUsersList = res[2].hrUsers||[]; }
+  var settle = function(p){ return p.then(function(v){return {ok:true,v:v};}, function(e){return {ok:false,e:e};}); };
+  Promise.all([ settle(apiList()), settle(apiJobs()), settle(apiSettings()) ]).then(function(res){
+    var errs = [];
+    if(res[0].ok) records = res[0].v||[]; else errs.push('• รายชื่อผู้สมัคร: '+errMsg_(res[0].e));
+    if(res[1].ok) jobs = res[1].v||[];    else errs.push('• ตำแหน่งงาน: '+errMsg_(res[1].e));
+    if(res[2].ok && res[2].v && res[2].v.settings){ settings = res[2].v.settings; hrUsersList = res[2].v.hrUsers||[]; }
+    else if(!res[2].ok) errs.push('• ตั้งค่า: '+errMsg_(res[2].e));
     render();
-  }).catch(function(err){ records=[]; render(); alert('โหลดข้อมูลไม่สำเร็จ: '+err.message); });
+    if(errs.length){
+      // ถ้ามี session หมดอายุ → เด้งไป login
+      for(var i=0;i<res.length;i++){
+        if(!res[i].ok && /session/i.test(errMsg_(res[i].e))){
+          session=null; hrAuthed=false; localStorage.removeItem('akr_hr_session');
+          alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); view='login'; render(); return;
+        }
+      }
+      alert('โหลดข้อมูลบางส่วนไม่สำเร็จ:\n\n'+errs.join('\n')+'\n\nกดปุ่ม "รีเฟรช" เพื่อลองใหม่ หรือใช้เครื่องมือตรวจการเชื่อมต่อ');
+    }
+  });
 }
+function errMsg_(e){ return (e && e.message) ? e.message : String(e); }
 function loadHome(){
   view='home'; render();
   apiJobs().then(function(arr){ jobs=arr||[]; if(view==='home') render(); })
@@ -1162,9 +1236,10 @@ function hrShell(content){
   var menu = [
     {k:'applicants', icon:'📋', l:'ทะเบียนผู้สมัคร'},
     {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
+    {k:'reports',    icon:'📄', l:'ศูนย์รวมรายงาน'},
     {k:'settings',   icon:'⚙️', l:'ตั้งค่าระบบ'}
   ].map(function(m){
-    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
+    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;reportView=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
   }).join('');
   return '<div class="hr-layout">'
     + '<aside class="sidebar"><div class="side-user">'
@@ -1180,6 +1255,7 @@ function hrShell(content){
 }
 function viewDashboard(){
   if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
+  if(hrMenu==='reports') return hrShell(viewReports());
   if(hrMenu==='settings') return hrShell(viewSettings());
   return hrShell(viewApplicants());
 }
@@ -1194,6 +1270,271 @@ function nextAppt(r){
   if(!items.length) return '';
   var t = items[items.length-1];
   return t.icon+' '+dateTH(a[t.k].date);
+}
+// ═══════════════ ศูนย์รวมรายงาน Reports Center ═══════════════
+function viewReports(){
+  if(reportView==='summary')      return reportSummary();
+  if(reportView==='jobsrep')      return reportJobs();
+  if(reportView==='appointments') return reportAppointments();
+  if(reportView==='stats')        return reportStats();
+  if(reportView==='bulkslip')     return reportBulkSlip();
+  // หน้าการ์ดรวม
+  var cards = [
+    { k:'summary', icon:'📋', color:'blue',  title:'รายงานสรุปผู้สมัคร',
+      desc:'รายชื่อผู้สมัครทั้งหมด กรองตามสถานะ ตำแหน่ง และช่วงเวลา พร้อมพิมพ์/Export Excel',
+      btn:'เปิดรายงาน', btnColor:'blue' },
+    { k:'jobsrep', icon:'💼', color:'green', title:'รายงานตำแหน่งงานที่เปิดรับ',
+      desc:'สรุปตำแหน่งที่เปิดรับ จำนวนอัตรา และจำนวนผู้สมัครต่อแต่ละตำแหน่ง',
+      btn:'เปิดรายงาน', btnColor:'green' },
+    { k:'appointments', icon:'📅', color:'amber', title:'สรุปการนัดหมายที่จะถึงกำหนด',
+      desc:'รายการนัดสัมภาษณ์ ตรวจสุขภาพ และวันเริ่มงานที่กำลังจะมาถึง เรียงตามวันที่',
+      btn:'เปิดรายงาน', btnColor:'amber' },
+    { k:'stats', icon:'📊', color:'purple', title:'รายงานภาพรวม / สถิติ',
+      desc:'ภาพรวมผู้สมัครแยกตามสถานะ อัตราผ่านแต่ละตำแหน่ง และสรุปช่องทางการรับสมัคร',
+      btn:'เปิดรายงาน', btnColor:'purple' },
+    { k:'bulkslip', icon:'🖨', color:'dark', title:'พิมพ์ใบนัดหมายจำนวนมาก',
+      desc:'เลือกผู้สมัครหลายคนที่มีนัดหมาย แล้วพิมพ์ใบนัดทั้งหมดพร้อมกันในครั้งเดียว',
+      btn:'เลือกและพิมพ์', btnColor:'dark' }
+  ];
+  var grid = cards.map(function(c){
+    return '<div class="report-card rc-'+c.color+'">'
+      + '<div class="rc-icon rc-icon-'+c.color+'">'+c.icon+'</div>'
+      + '<div class="rc-title">'+c.title+'</div>'
+      + '<div class="rc-desc">'+c.desc+'</div>'
+      + '<button class="rc-btn rc-btn-'+c.btnColor+'" onclick="reportView=\''+c.k+'\';render()">🖨 '+c.btn+'</button>'
+      + '</div>';
+  }).join('');
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">📄 ศูนย์รวมรายงาน</h2>'
+    + '<span style="margin-left:12px;font-size:13px;color:var(--muted)">รวมรายงานและการพิมพ์ทั้งหมดของระบบไว้ที่เดียว</span></div>'
+    + '<div class="report-grid">'+grid+'</div>';
+}
+function reportBack(){
+  return '<button class="btn btn-sm" onclick="reportView=null;render()">← กลับศูนย์รวมรายงาน</button>';
+}
+// ── 1. รายงานสรุปผู้สมัคร ──
+function reportSummary(){
+  var positions = [];
+  records.forEach(function(r){ var p=(r.data||{}).pos1; if(p && positions.indexOf(p)===-1) positions.push(p); });
+  var f = reportFilter;
+  var list = records.filter(function(r){
+    var d=r.data||{};
+    if(f.status && r.status!==f.status) return false;
+    if(f.position && d.pos1!==f.position) return false;
+    if(f.from && (r.ts||'').slice(0,10) < f.from) return false;
+    if(f.to && (r.ts||'').slice(0,10) > f.to) return false;
+    return true;
+  });
+  var statusOpts = '<option value="">ทุกสถานะ</option>'+curStages().map(function(s){return '<option'+(f.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var posOpts = '<option value="">ทุกตำแหน่ง</option>'+positions.map(function(p){return '<option'+(f.position===p?' selected':'')+'>'+esc(p)+'</option>';}).join('');
+  var rows = list.map(function(r,i){
+    var d=r.data||{};
+    return '<tr><td>'+(i+1)+'</td><td class="rec-no">'+esc(r.id)+'</td>'
+      + '<td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+      + '<td>'+esc(d.pos1||'-')+'</td>'
+      + '<td>'+esc(d.phone||d.email||'-')+'</td>'
+      + '<td>'+dateTH(r.ts)+'</td>'
+      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span></td>'
+      + '<td>'+esc(lastScreener(r)||'-')+'</td></tr>';
+  }).join('');
+  var table = list.length
+    ? '<table class="ats-table" id="repSummaryTable"><thead><tr><th>#</th><th>เลขรับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ติดต่อ</th><th>วันที่สมัคร</th><th>สถานะ</th><th>ผู้คัดกรอง</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ไม่พบผู้สมัครตามเงื่อนไข</div>';
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">📋 รายงานสรุปผู้สมัคร</h2>'
+    + '<div style="margin-left:auto;display:flex;gap:8px">'
+    + '<button class="btn btn-sm btn-accent" onclick="exportSummaryReport()">📊 Export Excel</button>'
+    + '<button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานสรุปผู้สมัคร\')">🖨 พิมพ์</button></div></div>'
+    + '<div class="report-filter">'
+    + '<div><label>สถานะ</label><select onchange="reportFilter.status=this.value;render()">'+statusOpts+'</select></div>'
+    + '<div><label>ตำแหน่ง</label><select onchange="reportFilter.position=this.value;render()">'+posOpts+'</select></div>'
+    + '<div><label>ตั้งแต่วันที่</label><input type="date" value="'+val(f.from)+'" onchange="reportFilter.from=this.value;render()"></div>'
+    + '<div><label>ถึงวันที่</label><input type="date" value="'+val(f.to)+'" onchange="reportFilter.to=this.value;render()"></div>'
+    + '<div style="align-self:end"><button class="btn btn-sm" onclick="reportFilter={status:\'\',position:\'\',from:\'\',to:\'\'};render()">ล้างตัวกรอง</button></div>'
+    + '</div>'
+    + '<div id="reportPrintArea"><div class="report-head-print">รายงานสรุปผู้สมัคร — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+' · จำนวน '+list.length+' ราย'+(f.status?' · สถานะ '+f.status:'')+(f.position?' · ตำแหน่ง '+esc(f.position):'')+'</span></div>'
+    + table + '</div>';
+}
+function exportSummaryReport(){
+  if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ'); return; }
+  var f = reportFilter;
+  var list = records.filter(function(r){
+    var d=r.data||{};
+    if(f.status && r.status!==f.status) return false;
+    if(f.position && d.pos1!==f.position) return false;
+    if(f.from && (r.ts||'').slice(0,10) < f.from) return false;
+    if(f.to && (r.ts||'').slice(0,10) > f.to) return false;
+    return true;
+  });
+  var rows=[['#','เลขรับ','ชื่อ-สกุล','ตำแหน่ง','โทรศัพท์','อีเมล','วันที่สมัคร','สถานะ','ผู้คัดกรอง']];
+  list.forEach(function(r,i){ var d=r.data||{};
+    rows.push([i+1,r.id,(d.firstName||'')+' '+(d.lastName||''),d.pos1||'',d.phone||'',d.email||'',dateTH(r.ts),r.status,lastScreener(r)]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:5},{wch:15},{wch:24},{wch:20},{wch:14},{wch:24},{wch:13},{wch:12},{wch:14}];
+  var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'สรุปผู้สมัคร');
+  XLSX.writeFile(wb,'ApplicantSummary_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+// ── 2. รายงานตำแหน่งงาน + จำนวนผู้สมัคร ──
+function reportJobs(){
+  var rows = jobs.map(function(j,i){
+    var applied = records.filter(function(r){ return (r.data||{}).pos1===j.title; });
+    var passed = applied.filter(function(r){ return r.status==='ผ่าน'; }).length;
+    return '<tr><td>'+(i+1)+'</td><td class="rec-no">'+esc(j.id)+'</td>'
+      + '<td><strong>'+esc(j.title)+'</strong></td>'
+      + '<td>'+esc(j.dept||'-')+'</td>'
+      + '<td style="text-align:center">'+esc(j.openings||1)+'</td>'
+      + '<td style="text-align:center"><strong>'+applied.length+'</strong></td>'
+      + '<td style="text-align:center">'+passed+'</td>'
+      + '<td><span class="status-pill '+(j.status==='เปิดรับ'?'st-ผ่าน':'st-ไม่ผ่าน')+'">'+esc(j.status)+'</span></td></tr>';
+  }).join('');
+  var totalOpen = jobs.reduce(function(s,j){return s+(parseInt(j.openings,10)||1);},0);
+  var table = jobs.length
+    ? '<table class="ats-table"><thead><tr><th>#</th><th>รหัส</th><th>ตำแหน่ง</th><th>แผนก</th><th>อัตรา</th><th>ผู้สมัคร</th><th>ผ่าน</th><th>สถานะ</th></tr></thead><tbody>'+rows+'</tbody>'
+      + '<tfoot><tr style="background:#f0f4f9;font-weight:600"><td colspan="4">รวม '+jobs.length+' ตำแหน่ง</td><td style="text-align:center">'+totalOpen+'</td><td style="text-align:center">'+records.length+'</td><td colspan="2"></td></tr></tfoot></table>'
+    : '<div class="empty-state">ยังไม่มีตำแหน่งงาน</div>';
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">💼 รายงานตำแหน่งงานที่เปิดรับ</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานตำแหน่งงานที่เปิดรับ\')">🖨 พิมพ์</button></div></div>'
+    + '<div id="reportPrintArea"><div class="report-head-print">รายงานตำแหน่งงานที่เปิดรับ — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+'</span></div>'
+    + table + '</div>';
+}
+// ── 3. สรุปการนัดหมายที่จะถึงกำหนด ──
+function reportAppointments(){
+  var today = new Date().toISOString().slice(0,10);
+  var items = [];
+  records.forEach(function(r){
+    var a=r.appts||{};
+    APPT_TYPES.forEach(function(t){
+      if(a[t.k] && a[t.k].date){
+        items.push({ rec:r, type:t, appt:a[t.k], upcoming:a[t.k].date>=today });
+      }
+    });
+  });
+  items.sort(function(x,y){ return (x.appt.date+(x.appt.time||'')) < (y.appt.date+(y.appt.time||'')) ? -1 : 1; });
+  var upcoming = items.filter(function(x){return x.upcoming;});
+  var past = items.filter(function(x){return !x.upcoming;});
+  var rowsOf = function(arr){
+    return arr.map(function(x){
+      var d=x.rec.data||{};
+      return '<tr><td>'+x.type.icon+' '+x.type.l+'</td>'
+        + '<td><strong>'+dateTH(x.appt.date)+'</strong>'+(x.appt.time?' '+esc(x.appt.time)+' น.':'')+'</td>'
+        + '<td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+        + '<td>'+esc(d.pos1||'-')+'</td>'
+        + '<td>'+esc(x.appt.place||'-')+'</td>'
+        + '<td>'+esc(d.phone||d.email||'-')+'</td>'
+        + '<td>'+(x.appt.notified?'<span class="status-pill st-ผ่าน">แจ้งแล้ว</span>':'<span class="status-pill st-คัดกรอง">ยังไม่แจ้ง</span>')+'</td></tr>';
+    }).join('');
+  };
+  var section = function(title, arr){
+    if(!arr.length) return '';
+    return '<div class="report-head-print" style="margin-top:10px">'+title+' ('+arr.length+')</div>'
+      + '<table class="ats-table"><thead><tr><th>ประเภท</th><th>วันเวลา</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>สถานที่</th><th>ติดต่อ</th><th>การแจ้ง</th></tr></thead><tbody>'+rowsOf(arr)+'</tbody></table>';
+  };
+  var body = (upcoming.length||past.length)
+    ? section('🔔 นัดหมายที่จะถึงกำหนด', upcoming) + section('ผ่านมาแล้ว', past)
+    : '<div class="empty-state">ยังไม่มีการนัดหมาย</div>';
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">📅 สรุปการนัดหมายที่จะถึงกำหนด</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="printReport(\'สรุปการนัดหมาย\')">🖨 พิมพ์</button></div></div>'
+    + '<div id="reportPrintArea"><div class="report-head-print">สรุปการนัดหมาย — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+'</span></div>'
+    + body + '</div>';
+}
+// ── 4. รายงานภาพรวม / สถิติ ──
+function reportStats(){
+  var total = records.length;
+  var byStatus = {}; curStages().forEach(function(s){ byStatus[s]=0; });
+  records.forEach(function(r){ if(byStatus[r.status]!==undefined) byStatus[r.status]++; else byStatus[r.status]=(byStatus[r.status]||0)+1; });
+  var withEmail = records.filter(function(r){return (r.data||{}).email;}).length;
+  var noEmail = total - withEmail;
+  // อัตราผ่านต่อตำแหน่ง
+  var posStat = {};
+  records.forEach(function(r){
+    var p=(r.data||{}).pos1||'(ไม่ระบุ)';
+    posStat[p]=posStat[p]||{total:0,pass:0};
+    posStat[p].total++;
+    if(r.status==='ผ่าน') posStat[p].pass++;
+  });
+  var statusBars = curStages().map(function(s){
+    var n=byStatus[s]||0; var pct= total? Math.round(n/total*100):0;
+    return '<div class="stat-bar-row"><div class="stat-bar-label">'+s+'</div>'
+      + '<div class="stat-bar-track"><div class="stat-bar-fill st-fill-'+s+'" style="width:'+pct+'%"></div></div>'
+      + '<div class="stat-bar-val">'+n+' ('+pct+'%)</div></div>';
+  }).join('');
+  var posRows = Object.keys(posStat).map(function(p){
+    var st=posStat[p]; var rate= st.total? Math.round(st.pass/st.total*100):0;
+    return '<tr><td>'+esc(p)+'</td><td style="text-align:center">'+st.total+'</td><td style="text-align:center">'+st.pass+'</td><td style="text-align:center">'+rate+'%</td></tr>';
+  }).join('');
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">📊 รายงานภาพรวม / สถิติ</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานภาพรวมสถิติ\')">🖨 พิมพ์</button></div></div>'
+    + '<div id="reportPrintArea"><div class="report-head-print">รายงานภาพรวม / สถิติการรับสมัคร — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+'</span></div>'
+    + '<div class="stat-summary-row">'
+    + '<div class="stat-box"><div class="stat-box-num">'+total+'</div><div class="stat-box-lbl">ผู้สมัครทั้งหมด</div></div>'
+    + '<div class="stat-box"><div class="stat-box-num">'+(byStatus['ผ่าน']||0)+'</div><div class="stat-box-lbl">ผ่านการคัดเลือก</div></div>'
+    + '<div class="stat-box"><div class="stat-box-num">'+withEmail+'</div><div class="stat-box-lbl">มีอีเมล</div></div>'
+    + '<div class="stat-box"><div class="stat-box-num">'+noEmail+'</div><div class="stat-box-lbl">ติดต่อทางโทรศัพท์</div></div>'
+    + '</div>'
+    + '<div class="card" style="margin-top:14px"><div class="section-label">สัดส่วนผู้สมัครแยกตามสถานะ</div>'+statusBars+'</div>'
+    + '<div class="section-label" style="margin-top:14px">อัตราผ่านการคัดเลือกแยกตามตำแหน่ง</div>'
+    + (posRows?'<table class="ats-table"><thead><tr><th>ตำแหน่ง</th><th style="text-align:center">ผู้สมัคร</th><th style="text-align:center">ผ่าน</th><th style="text-align:center">อัตราผ่าน</th></tr></thead><tbody>'+posRows+'</tbody></table>':'<div class="empty-state">ยังไม่มีข้อมูล</div>')
+    + '</div>';
+}
+// ── 5. พิมพ์ใบนัดหมายจำนวนมาก ──
+function reportBulkSlip(){
+  var withAppt = [];
+  records.forEach(function(r){
+    var a=r.appts||{};
+    APPT_TYPES.forEach(function(t){
+      if(a[t.k] && a[t.k].date) withAppt.push({rec:r,type:t,appt:a[t.k]});
+    });
+  });
+  withAppt.sort(function(x,y){ return (x.appt.date) < (y.appt.date) ? -1 : 1; });
+  var rows = withAppt.map(function(x){
+    var d=x.rec.data||{}; var key=x.rec.id+'__'+x.type.k;
+    var checked = bulkSlipSel[key] ? 'checked' : '';
+    return '<tr><td style="text-align:center"><input type="checkbox" '+checked+' onchange="toggleBulkSlip(\''+key+'\')"></td>'
+      + '<td>'+x.type.icon+' '+x.type.l+'</td>'
+      + '<td><strong>'+dateTH(x.appt.date)+'</strong>'+(x.appt.time?' '+esc(x.appt.time):'')+'</td>'
+      + '<td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+      + '<td>'+esc(d.pos1||'-')+'</td>'
+      + '<td>'+esc(x.appt.place||'-')+'</td></tr>';
+  }).join('');
+  var selCount = Object.keys(bulkSlipSel).filter(function(k){return bulkSlipSel[k];}).length;
+  var allSelected = withAppt.length>0 && withAppt.every(function(x){ return bulkSlipSel[x.rec.id+'__'+x.type.k]; });
+  var table = withAppt.length
+    ? '<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center"><button class="btn btn-sm" onclick="bulkSlipAll('+(!allSelected)+')">'+(allSelected?'ยกเลิกทั้งหมด':'เลือกทั้งหมด')+'</button>'
+      + '<span style="font-size:13px;color:var(--muted)">เลือกแล้ว '+selCount+' รายการ</span></div>'
+      + '<table class="ats-table"><thead><tr><th style="width:40px">✓</th><th>ประเภท</th><th>วันเวลา</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>สถานที่</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ยังไม่มีผู้สมัครที่มีนัดหมาย</div>';
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">🖨 พิมพ์ใบนัดหมายจำนวนมาก</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" '+(selCount?'':'disabled')+' onclick="printBulkSlips()">🖨 พิมพ์ใบนัดที่เลือก ('+selCount+')</button></div></div>'
+    + '<div class="alert alert-info" style="font-size:12px">เลือกผู้สมัครที่ต้องการพิมพ์ใบนัด แล้วกดพิมพ์ — ระบบจะรวมใบนัดทั้งหมดเป็นหน้าๆ พิมพ์ทีเดียว หรือบันทึกเป็น PDF ส่ง LINE ได้</div>'
+    + table;
+}
+function toggleBulkSlip(key){ bulkSlipSel[key]=!bulkSlipSel[key]; render(); }
+function bulkSlipAll(on){
+  var withAppt=[];
+  records.forEach(function(r){ var a=r.appts||{}; APPT_TYPES.forEach(function(t){ if(a[t.k]&&a[t.k].date) withAppt.push(r.id+'__'+t.k); }); });
+  withAppt.forEach(function(k){ bulkSlipSel[k]=on; });
+  render();
+}
+function printBulkSlips(){
+  var keys = Object.keys(bulkSlipSel).filter(function(k){return bulkSlipSel[k];});
+  if(!keys.length){ alert('กรุณาเลือกอย่างน้อย 1 รายการ'); return; }
+  var html='';
+  keys.forEach(function(key){
+    var parts=key.split('__'); var recId=parts[0], typeKey=parts[1];
+    var r=records.filter(function(x){return x.id===recId;})[0]; if(!r) return;
+    html += buildSlipHTML(r, typeKey);
+  });
+  var pa=$('printArea'); pa.innerHTML=html;
+  document.body.classList.remove('preview-mode');
+  document.body.classList.add('printing');
+  setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 150);
+}
+// พิมพ์รายงาน (ตาราง) — ใช้ร่วมกับทุกรายงาน
+function printReport(title){
+  var area=$('reportPrintArea'); if(!area){ window.print(); return; }
+  var pa=$('printArea');
+  pa.innerHTML='<div class="report-print-wrap">'+area.innerHTML+'</div>';
+  document.body.classList.remove('preview-mode');
+  document.body.classList.add('printing');
+  setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 120);
 }
 function viewApplicants(){
   var counts = {all: records.length};
@@ -1694,19 +2035,18 @@ function buildPrintDoc(rec){
 
   return p1 + p2 + p3;
 }
-function printApptSlip(typeKey){
-  if(!currentRec) return;
+function buildSlipHTML(rec, typeKey){
   var t = APPT_TYPES.filter(function(a){return a.k===typeKey;})[0];
-  var a = (currentRec.appts||{})[typeKey];
-  if(!a){ alert('ยังไม่มีข้อมูลนัดหมาย'); return; }
-  var d = currentRec.data||{};
+  var a = (rec.appts||{})[typeKey];
+  if(!a) return '';
+  var d = rec.data||{};
   var co = (settings&&settings.company)||DEFAULT_SETTINGS.company;
   var name = (d.firstName||'')+' '+(d.lastName||'');
   var fast = (typeKey==='health') ? '<p style="margin-top:3mm;color:#b00">⚠ กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง</p>' : '';
-  var slip = '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
+  return '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
     + ppHead()
     + '<div class="pp-title" style="margin-bottom:4mm">ใบนัดหมาย '+t.l+'<br><span style="font-size:9pt;font-weight:400">Appointment Notice</span></div>'
-    + '<table style="width:100%;font-size:11pt;border:none"><tr><td style="border:none;padding:2mm 0">เลขรับเอกสาร</td><td style="border:none;padding:2mm 0"><b>'+esc(currentRec.id)+'</b></td></tr>'
+    + '<table style="width:100%;font-size:11pt;border:none"><tr><td style="border:none;padding:2mm 0">เลขรับเอกสาร</td><td style="border:none;padding:2mm 0"><b>'+esc(rec.id)+'</b></td></tr>'
     + '<tr><td style="border:none;padding:2mm 0">เรียน</td><td style="border:none;padding:2mm 0"><b>'+esc(name)+'</b></td></tr>'
     + '<tr><td style="border:none;padding:2mm 0">ตำแหน่งที่สมัคร</td><td style="border:none;padding:2mm 0">'+esc(d.pos1||'-')+'</td></tr></table>'
     + '<div style="border:1.5pt solid #1a4f8a;border-radius:3mm;padding:5mm;margin-top:4mm;background:#f4f8fd">'
@@ -1719,10 +2059,15 @@ function printApptSlip(typeKey){
     + fast
     + '<p style="margin-top:4mm;font-size:10pt">กรุณานำบัตรประชาชนและเอกสารที่เกี่ยวข้องมาในวันนัดหมาย หากมีข้อสงสัยหรือต้องการเปลี่ยนแปลงนัดหมาย กรุณาติดต่อ '+esc(co.hrPhone||co.hrEmail||'ฝ่ายทรัพยากรบุคคล')+'</p>'
     + '<p style="margin-top:8mm;font-size:10pt">ขอแสดงความนับถือ<br><b>ฝ่ายทรัพยากรบุคคล</b><br>'+esc(co.name||'')+'<br>'+esc(co.site||'')+'</p>'
-    + '<div class="pp-footer" style="margin-top:10mm"><span><b>'+CONFIG.DOC.no+'</b> ใบนัดหมาย</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(currentRec.id)+'</span></div>'
+    + '<div class="pp-footer" style="margin-top:10mm"><span><b>'+CONFIG.DOC.no+'</b> ใบนัดหมาย</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(rec.id)+'</span></div>'
     + '</div>';
+}
+function printApptSlip(typeKey){
+  if(!currentRec) return;
+  var a = (currentRec.appts||{})[typeKey];
+  if(!a){ alert('ยังไม่มีข้อมูลนัดหมาย'); return; }
   var pa = $('printArea');
-  pa.innerHTML = slip;
+  pa.innerHTML = buildSlipHTML(currentRec, typeKey);
   document.body.classList.remove('preview-mode');
   document.body.classList.add('printing');
   setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 120);
