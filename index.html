@@ -1089,10 +1089,18 @@ function saveAppt(typeKey){
   }
   if(!dEl || !dEl.value){ alert('กรุณาระบุวันที่นัดหมาย'); return; }
   currentRec.appts = currentRec.appts || {};
-  currentRec.appts[typeKey] = {
+  var apptData = {
     date: dEl.value, time: tmEl?tmEl.value:'', place: place, note: ntEl?ntEl.value:'',
     by: (session&&session.name)||'-', savedAt: new Date().toISOString(), notified:false
   };
+  // ใบส่งตัวตรวจสุขภาพ: เก็บข้อมูลเพิ่มสำหรับยื่นโรงพยาบาล
+  if(typeKey==='health'){
+    apptData.dept = ($('appt_health_dept')||{}).value || '';
+    apptData.section = ($('appt_health_section')||{}).value || '';
+    apptData.position = ($('appt_health_position')||{}).value || '';
+    apptData.plan = ($('appt_health_plan')||{}).value || '';
+  }
+  currentRec.appts[typeKey] = apptData;
   if(currentRec._editAppt) currentRec._editAppt[typeKey] = false;
   var entry = logEntry(t.l+' → '+dateTH(dEl.value)+(tmEl&&tmEl.value?' '+tmEl.value+' น.':''));
   apiUpdate(currentRec.id, {appts:currentRec.appts, logEntry:entry}).then(function(){
@@ -1334,13 +1342,14 @@ function reportSummary(){
     return '<tr><td>'+(i+1)+'</td><td class="rec-no">'+esc(r.id)+'</td>'
       + '<td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
       + '<td>'+esc(d.pos1||'-')+'</td>'
+      + '<td>'+esc(deptOf(d.pos1)||'-')+'</td>'
       + '<td>'+esc(d.phone||d.email||'-')+'</td>'
       + '<td>'+dateTH(r.ts)+'</td>'
       + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span></td>'
       + '<td>'+esc(lastScreener(r)||'-')+'</td></tr>';
   }).join('');
   var table = list.length
-    ? '<table class="ats-table" id="repSummaryTable"><thead><tr><th>#</th><th>เลขรับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ติดต่อ</th><th>วันที่สมัคร</th><th>สถานะ</th><th>ผู้คัดกรอง</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    ? '<table class="ats-table" id="repSummaryTable"><thead><tr><th>#</th><th>เลขรับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>ติดต่อ</th><th>วันที่สมัคร</th><th>สถานะ</th><th>ผู้คัดกรอง</th></tr></thead><tbody>'+rows+'</tbody></table>'
     : '<div class="empty-state">ไม่พบผู้สมัครตามเงื่อนไข</div>';
   return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">📋 รายงานสรุปผู้สมัคร</h2>'
     + '<div style="margin-left:auto;display:flex;gap:8px">'
@@ -1367,11 +1376,11 @@ function exportSummaryReport(){
     if(f.to && (r.ts||'').slice(0,10) > f.to) return false;
     return true;
   });
-  var rows=[['#','เลขรับ','ชื่อ-สกุล','ตำแหน่ง','โทรศัพท์','อีเมล','วันที่สมัคร','สถานะ','ผู้คัดกรอง']];
+  var rows=[['#','เลขรับ','ชื่อ-สกุล','ตำแหน่ง','แผนก','โทรศัพท์','อีเมล','วันที่สมัคร','สถานะ','ผู้คัดกรอง']];
   list.forEach(function(r,i){ var d=r.data||{};
-    rows.push([i+1,r.id,(d.firstName||'')+' '+(d.lastName||''),d.pos1||'',d.phone||'',d.email||'',dateTH(r.ts),r.status,lastScreener(r)]);
+    rows.push([i+1,r.id,(d.firstName||'')+' '+(d.lastName||''),d.pos1||'',deptOf(d.pos1)||'',d.phone||'',d.email||'',dateTH(r.ts),r.status,lastScreener(r)]);
   });
-  var ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:5},{wch:15},{wch:24},{wch:20},{wch:14},{wch:24},{wch:13},{wch:12},{wch:14}];
+  var ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:5},{wch:15},{wch:24},{wch:20},{wch:18},{wch:14},{wch:24},{wch:13},{wch:12},{wch:14}];
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'สรุปผู้สมัคร');
   XLSX.writeFile(wb,'ApplicantSummary_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
@@ -1453,11 +1462,32 @@ function reportStats(){
     posStat[p].total++;
     if(r.status==='ผ่าน') posStat[p].pass++;
   });
+  // สถิติแยกตามแผนก (ดึงแผนกจากตำแหน่งที่ผู้สมัครเลือก)
+  var deptStat = {};
+  records.forEach(function(r){
+    var dep = deptOf((r.data||{}).pos1) || '(ไม่ระบุแผนก)';
+    deptStat[dep]=deptStat[dep]||{total:0,pass:0,intv:0};
+    deptStat[dep].total++;
+    if(r.status==='ผ่าน') deptStat[dep].pass++;
+    if(r.status==='นัดสัมภาษณ์') deptStat[dep].intv++;
+  });
   var statusBars = curStages().map(function(s){
     var n=byStatus[s]||0; var pct= total? Math.round(n/total*100):0;
     return '<div class="stat-bar-row"><div class="stat-bar-label">'+s+'</div>'
       + '<div class="stat-bar-track"><div class="stat-bar-fill st-fill-'+s+'" style="width:'+pct+'%"></div></div>'
       + '<div class="stat-bar-val">'+n+' ('+pct+'%)</div></div>';
+  }).join('');
+  // แถบสัดส่วนผู้สมัครแยกแผนก
+  var deptKeys = Object.keys(deptStat).sort(function(x,y){ return deptStat[y].total - deptStat[x].total; });
+  var deptBars = deptKeys.map(function(dep){
+    var n=deptStat[dep].total; var pct= total? Math.round(n/total*100):0;
+    return '<div class="stat-bar-row"><div class="stat-bar-label" style="width:130px">'+esc(dep)+'</div>'
+      + '<div class="stat-bar-track"><div class="stat-bar-fill" style="width:'+pct+'%;background:#2c7a7b"></div></div>'
+      + '<div class="stat-bar-val">'+n+' ('+pct+'%)</div></div>';
+  }).join('');
+  var deptRows = deptKeys.map(function(dep){
+    var st=deptStat[dep]; var rate= st.total? Math.round(st.pass/st.total*100):0;
+    return '<tr><td>'+esc(dep)+'</td><td style="text-align:center">'+st.total+'</td><td style="text-align:center">'+st.intv+'</td><td style="text-align:center">'+st.pass+'</td><td style="text-align:center">'+rate+'%</td></tr>';
   }).join('');
   var posRows = Object.keys(posStat).map(function(p){
     var st=posStat[p]; var rate= st.total? Math.round(st.pass/st.total*100):0;
@@ -1469,13 +1499,22 @@ function reportStats(){
     + '<div class="stat-summary-row">'
     + '<div class="stat-box"><div class="stat-box-num">'+total+'</div><div class="stat-box-lbl">ผู้สมัครทั้งหมด</div></div>'
     + '<div class="stat-box"><div class="stat-box-num">'+(byStatus['ผ่าน']||0)+'</div><div class="stat-box-lbl">ผ่านการคัดเลือก</div></div>'
-    + '<div class="stat-box"><div class="stat-box-num">'+withEmail+'</div><div class="stat-box-lbl">มีอีเมล</div></div>'
+    + '<div class="stat-box"><div class="stat-box-num">'+deptKeys.length+'</div><div class="stat-box-lbl">แผนกที่มีผู้สมัคร</div></div>'
     + '<div class="stat-box"><div class="stat-box-num">'+noEmail+'</div><div class="stat-box-lbl">ติดต่อทางโทรศัพท์</div></div>'
     + '</div>'
     + '<div class="card" style="margin-top:14px"><div class="section-label">สัดส่วนผู้สมัครแยกตามสถานะ</div>'+statusBars+'</div>'
+    + '<div class="card" style="margin-top:14px"><div class="section-label">สัดส่วนผู้สมัครแยกตามแผนก</div>'+(deptBars||'<div class="empty-state">ยังไม่มีข้อมูล</div>')+'</div>'
+    + '<div class="section-label" style="margin-top:14px">สรุปการคัดเลือกแยกตามแผนก</div>'
+    + (deptRows?'<table class="ats-table"><thead><tr><th>แผนก</th><th style="text-align:center">ผู้สมัคร</th><th style="text-align:center">นัดสัมภาษณ์</th><th style="text-align:center">ผ่าน</th><th style="text-align:center">อัตราผ่าน</th></tr></thead><tbody>'+deptRows+'</tbody></table>':'<div class="empty-state">ยังไม่มีข้อมูล</div>')
     + '<div class="section-label" style="margin-top:14px">อัตราผ่านการคัดเลือกแยกตามตำแหน่ง</div>'
     + (posRows?'<table class="ats-table"><thead><tr><th>ตำแหน่ง</th><th style="text-align:center">ผู้สมัคร</th><th style="text-align:center">ผ่าน</th><th style="text-align:center">อัตราผ่าน</th></tr></thead><tbody>'+posRows+'</tbody></table>':'<div class="empty-state">ยังไม่มีข้อมูล</div>')
     + '</div>';
+}
+// หาแผนกจากชื่อตำแหน่งที่ผู้สมัครเลือก (จับคู่กับตำแหน่งงานใน jobs)
+function deptOf(posTitle){
+  if(!posTitle) return '';
+  var j = (jobs||[]).filter(function(x){ return x.title && x.title.trim()===String(posTitle).trim(); })[0];
+  return j && j.dept ? j.dept : '';
 }
 // ── 5. พิมพ์ใบนัดหมายจำนวนมาก ──
 function reportBulkSlip(){
@@ -1652,7 +1691,7 @@ function settingsCompany(){
   return '<div class="card"><div class="card-header"><div class="icon">🏢</div><h2>ข้อมูลบริษัท</h2><small>ใช้ในใบนัดหมาย อีเมล และเอกสารพิมพ์</small></div>'
     + '<div class="form-grid">'
     + '<div class="form-group"><label><span class="th">ชื่อบริษัท</span></label><input value="'+val(c.name)+'" oninput="settings.company.name=this.value"></div>'
-    + '<div class="form-group"><label><span class="th">สถานที่ / ที่ตั้ง</span></label><input value="'+val(c.site)+'" oninput="settings.company.site=this.value"></div>'
+    + '<div class="form-group"><label><span class="th">ที่อยู่บริษัท</span> <span class="en">แสดงในใบนัด/ใบส่งตัว — ขึ้นบรรทัดใหม่ได้</span></label><textarea rows="3" style="min-height:70px;line-height:1.6;font-family:inherit" oninput="settings.company.site=this.value" placeholder="เช่น เลขที่ ... ตำบล ... อำเภอ ... จังหวัด ... รหัสไปรษณีย์">'+val(c.site)+'</textarea></div>'
     + '<div class="form-grid g2">'
     + '<div class="form-group"><label><span class="th">เบอร์ติดต่อ HR</span></label><input value="'+val(c.hrPhone)+'" placeholder="0xx-xxx-xxxx" oninput="settings.company.hrPhone=this.value"></div>'
     + '<div class="form-group"><label><span class="th">อีเมล HR (แสดงในเอกสาร)</span></label><input value="'+val(c.hrEmail)+'" oninput="settings.company.hrEmail=this.value"></div>'
@@ -1782,11 +1821,16 @@ function buildApptSection(r){
       return '<div class="appt-card set"><div class="appt-head"><span>'+t.icon+' '+t.l+'</span><span class="status-pill st-ผ่าน">นัดแล้ว</span></div>'
         + '<div class="appt-body"><strong style="font-size:15px">'+dateTH(a.date)+(a.time?' เวลา '+esc(a.time)+' น.':'')+'</strong>'
         + (a.place?'<br>📍 '+esc(a.place):'')
+        + (t.k==='health' && (a.dept||a.section||a.position||a.plan) ? '<br><span style="font-size:11px;color:var(--muted)">'
+            + (a.position?'ตำแหน่ง: '+esc(a.position)+' · ':'')
+            + (a.dept?'ฝ่าย: '+esc(a.dept)+' · ':'')
+            + (a.section?'แผนก: '+esc(a.section)+' · ':'')
+            + (a.plan?'แผนตรวจ '+esc(a.plan):'')+'</span>' : '')
         + (a.note?'<br><span style="color:var(--muted)">'+esc(a.note)+'</span>':'')
         + '<br><span style="font-size:10px;color:var(--muted)">บันทึกโดย '+esc(a.by||'-')+(a.notified?' · แจ้งผู้สมัครแล้ว':'')+'</span></div>'
         + '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
         + notifyBtn
-        + '<button class="btn btn-sm btn-outline" onclick="printApptSlip(\''+t.k+'\')">🖨 พิมพ์ใบนัด</button>'
+        + '<button class="btn btn-sm btn-outline" onclick="printApptSlip(\''+t.k+'\')">🖨 '+(t.k==='health'?'พิมพ์ใบส่งตัว':'พิมพ์ใบนัด')+'</button>'
         + '<button class="btn btn-sm" onclick="editAppt(\''+t.k+'\')">แก้ไข</button>'
         + '<button class="btn btn-sm" style="color:var(--danger)" onclick="clearAppt(\''+t.k+'\')">ยกเลิก</button></div></div>';
     }
@@ -1805,6 +1849,20 @@ function buildApptSection(r){
         + '<select id="appt_health_hospital" onchange="onHospitalChange(this)">'+opts+'</select>'
         + (hospitals.length?'':'<span style="font-size:11px;color:var(--warn)">ยังไม่มีรายชื่อโรงพยาบาล — เพิ่มได้ที่เมนูตั้งค่า → โรงพยาบาล</span>')
         + '<input id="appt_health_place" value="'+val(pre.place)+'" placeholder="หรือพิมพ์สถานที่เอง" style="margin-top:6px'+((pre.place && !hospitalKnown(pre.place))?'':';display:none')+'"></div>';
+      // ข้อมูลสำหรับใบส่งตัวตรวจสุขภาพ (ยื่นโรงพยาบาล) — เติมค่าจากใบสมัครให้อัตโนมัติ
+      var dd = r.data||{};
+      placeField += '<div style="margin-top:10px;padding:10px;background:#f0f6ff;border:1px solid #cfe0f5;border-radius:6px">'
+        + '<div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">📋 ข้อมูลสำหรับใบส่งตัวตรวจสุขภาพ (ยื่นโรงพยาบาล)</div>'
+        + '<div class="form-grid g2" style="gap:8px">'
+        + '<div class="form-group"><label><span class="th">ฝ่าย (Division)</span></label><input id="appt_health_dept" value="'+val(pre.dept||dd.dept||dd.division||'')+'" placeholder="เช่น Processing"></div>'
+        + '<div class="form-group"><label><span class="th">แผนก (Department)</span></label><input id="appt_health_section" value="'+val(pre.section||dd.section||dd.dept||'')+'" placeholder="เช่น Maintenance"></div></div>'
+        + '<div class="form-grid g2" style="gap:8px;margin-top:6px">'
+        + '<div class="form-group"><label><span class="th">ตำแหน่ง (Position)</span></label><input id="appt_health_position" value="'+val(pre.position||dd.pos1||'')+'" placeholder="ตำแหน่งงาน"></div>'
+        + '<div class="form-group"><label><span class="th">แผนการตรวจ (Plan)</span></label><select id="appt_health_plan">'
+          + '<option value="">— เลือกแผน —</option>'
+          + [1,2,3,4].map(function(n){return '<option value="'+n+'"'+(String(pre.plan)===String(n)?' selected':'')+'>แผน '+n+'</option>';}).join('')
+        + '</select></div></div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:4px">แผนการตรวจ 1-4 ตามข้อตกลงกับโรงพยาบาล — ข้อมูลนี้จะแสดงในใบส่งตัว</div></div>';
     } else {
       placeField = '<div class="form-group" style="margin-top:8px"><label><span class="th">สถานที่</span></label><input id="appt_'+t.k+'_place" value="'+val(pre.place)+'" placeholder="เช่น ห้องประชุม HR / สำนักงานใหญ่"></div>';
     }
@@ -2056,7 +2114,39 @@ function buildSlipHTML(rec, typeKey){
   var d = rec.data||{};
   var co = (settings&&settings.company)||DEFAULT_SETTINGS.company;
   var name = (d.firstName||'')+' '+(d.lastName||'');
-  var fast = (typeKey==='health') ? '<p style="margin-top:3mm;color:#b00">⚠ กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง</p>' : '';
+  var addrHtml = esc(co.site||'').replace(/\n/g,'<br>');
+
+  // ── ใบส่งตัวตรวจสุขภาพ (สำหรับยื่นโรงพยาบาล) ──
+  if(typeKey==='health'){
+    var idCard = d.idCard || '';
+    var prefix = d.prefix || d.title || '';
+    return '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
+      + ppHead()
+      + '<div class="pp-title" style="margin-bottom:2mm">ใบส่งตัวตรวจสุขภาพพนักงานใหม่<br><span style="font-size:9pt;font-weight:400">Health Examination Referral</span></div>'
+      + '<p style="font-size:10pt;margin:3mm 0">เรียน ผู้อำนวยการ/เจ้าหน้าที่ <b>'+(esc(a.place)||'โรงพยาบาล')+'</b></p>'
+      + '<p style="font-size:10pt;margin:0 0 4mm">บริษัทฯ ขอส่งตัวบุคคลดังต่อไปนี้เข้ารับการตรวจสุขภาพก่อนเริ่มงาน ตามข้อตกลงระหว่างบริษัทกับโรงพยาบาล โดยบริษัทเป็นผู้รับผิดชอบค่าใช้จ่ายตามแผนการตรวจที่ระบุ</p>'
+      + '<table style="width:100%;font-size:11pt;border-collapse:collapse">'
+      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa;width:40mm">ชื่อ-นามสกุล</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3"><b>'+esc(prefix)+' '+esc(name)+'</b></td></tr>'
+      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">เลขบัตรประชาชน</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3"><b>'+esc(idCard||'-')+'</b></td></tr>'
+      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">ฝ่าย (Division)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.dept||'-')+'</td>'
+        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa;width:28mm">แผนก (Dept.)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.section||'-')+'</td></tr>'
+      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">ตำแหน่ง (Position)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.position||d.pos1||'-')+'</td>'
+        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">เบอร์โทร</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(d.phone||'-')+'</td></tr>'
+      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#fff4d6"><b>แผนการตรวจ</b></td><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#fff4d6"><b>'+(a.plan?'แผน '+esc(a.plan):'(ระบุที่บริษัท)')+'</b></td>'
+        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">วันที่ตรวจ</td><td style="border:0.5pt solid #888;padding:2mm 3mm"><b>'+dateTH(a.date)+(a.time?' '+esc(a.time)+' น.':'')+'</b></td></tr>'
+      + (a.note?'<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">หมายเหตุ</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3">'+esc(a.note)+'</td></tr>':'')
+      + '</table>'
+      + '<p style="margin-top:3mm;font-size:9.5pt;color:#b00">⚠ กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง และนำบัตรประชาชนตัวจริงมาแสดง</p>'
+      + '<table style="width:100%;border:none;margin-top:12mm;font-size:10pt"><tr>'
+      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom">ลงชื่อ ............................................<br>( ............................................ )<br>เจ้าหน้าที่ผู้ส่งตัว / ฝ่ายทรัพยากรบุคคล<br>วันที่ '+dateTH(new Date().toISOString())+'</td>'
+      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom">ลงชื่อ ............................................<br>( ............................................ )<br>ผู้รับการตรวจ</td>'
+      + '</tr></table>'
+      + '<p style="margin-top:6mm;font-size:9.5pt">ออกโดย <b>'+esc(co.name||'')+'</b><br>'+addrHtml+(co.hrPhone?'<br>โทร. '+esc(co.hrPhone):'')+'</p>'
+      + '<div class="pp-footer" style="margin-top:8mm"><span><b>'+CONFIG.DOC.no+'</b> ใบส่งตัวตรวจสุขภาพ</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(rec.id)+'</span></div>'
+      + '</div>';
+  }
+
+  // ── ใบนัดทั่วไป (สัมภาษณ์ / วันเริ่มงาน) ──
   return '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
     + ppHead()
     + '<div class="pp-title" style="margin-bottom:4mm">ใบนัดหมาย '+t.l+'<br><span style="font-size:9pt;font-weight:400">Appointment Notice</span></div>'
@@ -2070,9 +2160,8 @@ function buildSlipHTML(rec, typeKey){
     + '<tr><td style="border:none;padding:2mm 0;vertical-align:top">📍 สถานที่</td><td style="border:none;padding:2mm 0"><b>'+(esc(a.place)||'-')+'</b></td></tr>'
     + (a.note?'<tr><td style="border:none;padding:2mm 0;vertical-align:top">📝 หมายเหตุ</td><td style="border:none;padding:2mm 0">'+esc(a.note)+'</td></tr>':'')
     + '</table></div>'
-    + fast
     + '<p style="margin-top:4mm;font-size:10pt">กรุณานำบัตรประชาชนและเอกสารที่เกี่ยวข้องมาในวันนัดหมาย หากมีข้อสงสัยหรือต้องการเปลี่ยนแปลงนัดหมาย กรุณาติดต่อ '+esc(co.hrPhone||co.hrEmail||'ฝ่ายทรัพยากรบุคคล')+'</p>'
-    + '<p style="margin-top:8mm;font-size:10pt">ขอแสดงความนับถือ<br><b>ฝ่ายทรัพยากรบุคคล</b><br>'+esc(co.name||'')+'<br>'+esc(co.site||'')+'</p>'
+    + '<p style="margin-top:8mm;font-size:10pt">ขอแสดงความนับถือ<br><b>ฝ่ายทรัพยากรบุคคล</b><br>'+esc(co.name||'')+'<br>'+addrHtml+'</p>'
     + '<div class="pp-footer" style="margin-top:10mm"><span><b>'+CONFIG.DOC.no+'</b> ใบนัดหมาย</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(rec.id)+'</span></div>'
     + '</div>';
 }
