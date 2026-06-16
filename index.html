@@ -174,6 +174,12 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
 .otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
 /* Reports Center */
+/* Onboarding */
+.onboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+@media(max-width:680px){.onboard-grid{grid-template-columns:1fr}}
+.chk-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer;flex-wrap:wrap}
+.chk-row input[type=checkbox]{width:17px;height:17px;cursor:pointer;flex-shrink:0}
+.chk-by{font-size:11px;color:var(--muted);margin-left:auto;background:#eef3fa;padding:1px 8px;border-radius:10px}
 .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:16px}
 .report-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px 20px;text-align:center;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;transition:transform .12s,box-shadow .12s}
 .report-card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.1)}
@@ -184,6 +190,8 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .rc-btn{width:100%;padding:10px;border-radius:8px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:#fff;transition:filter .12s}
 .rc-btn:hover{filter:brightness(.93)}
 .rc-btn-blue{background:#2563eb}.rc-btn-green{background:#1a9a5a}.rc-btn-amber{background:#e0a020}.rc-btn-purple{background:#8e44ad}.rc-btn-dark{background:#1e2a3a}
+.rc-icon-teal{background:#d8f3f0}.rc-btn-teal{background:#2c7a7b}
+.size-chip{display:inline-block;background:#eef3fa;border:1px solid #cfe0f5;border-radius:14px;padding:3px 12px;font-size:13px;margin:2px}
 .report-filter{display:flex;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px}
 .report-filter label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
 .report-filter select,.report-filter input{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px}
@@ -293,6 +301,17 @@ var APPT_TYPES = [
   { k:'start',     l:'นัดหมายวันเริ่มงาน',      icon:'🤝' }
 ];
 var STEPS = ['ตำแหน่งงาน','ข้อมูลส่วนตัว','การศึกษา','ประวัติการทำงาน','ทักษะ & อื่นๆ','เอกสารแนบ','ความยินยอม PDPA'];
+// ── Onboarding (วันแรกเริ่มงาน) ──
+var SHIRT_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
+var DEFAULT_CHECKLIST = [
+  'รับชุดยูนิฟอร์ม',
+  'เซ็นสัญญาจ้างงาน',
+  'อบรมความปลอดภัย (Safety Induction)',
+  'ถ่ายรูป / ทำบัตรพนักงาน',
+  'รับอุปกรณ์ป้องกันส่วนบุคคล (PPE)',
+  'ปฐมนิเทศ / แนะนำบริษัทและกฎระเบียบ',
+  'เปิดบัญชีเงินเดือน / ส่งเอกสารการเงิน'
+];
 var DOC_TYPES = [
   { k:'resume',   l:'Resume / ประวัติย่อ',          icon:'📄', hint:'PDF หรือรูปภาพ' },
   { k:'idcard',   l:'สำเนาบัตรประชาชน',             icon:'🪪', hint:'พร้อมเซ็นรับรองสำเนาถูกต้อง' },
@@ -528,6 +547,7 @@ function apiUpdate(id, fields){
         if(fields.status!==undefined) r.status=fields.status;
         if(fields.note!==undefined) r.note=fields.note;
         if(fields.appts!==undefined) r.appts=fields.appts;
+        if(fields.onboard!==undefined) r.onboard=fields.onboard;
         if(fields.logEntry){ r.log = r.log||[]; r.log.push(fields.logEntry); }
       }
     });
@@ -1289,6 +1309,7 @@ function viewReports(){
   if(reportView==='appointments') return reportAppointments();
   if(reportView==='stats')        return reportStats();
   if(reportView==='bulkslip')     return reportBulkSlip();
+  if(reportView==='onboarding')   return reportOnboarding();
   // หน้าการ์ดรวม
   var cards = [
     { k:'summary', icon:'📋', color:'blue',  title:'รายงานสรุปผู้สมัคร',
@@ -1301,8 +1322,11 @@ function viewReports(){
       desc:'รายการนัดสัมภาษณ์ ตรวจสุขภาพ และวันเริ่มงานที่กำลังจะมาถึง เรียงตามวันที่',
       btn:'เปิดรายงาน', btnColor:'amber' },
     { k:'stats', icon:'📊', color:'purple', title:'รายงานภาพรวม / สถิติ',
-      desc:'ภาพรวมผู้สมัครแยกตามสถานะ อัตราผ่านแต่ละตำแหน่ง และสรุปช่องทางการรับสมัคร',
+      desc:'ภาพรวมผู้สมัครแยกตามสถานะ อัตราผ่านแต่ละตำแหน่ง และสรุปแยกตามแผนก',
       btn:'เปิดรายงาน', btnColor:'purple' },
+    { k:'onboarding', icon:'🎯', color:'teal', title:'พนักงานเริ่มงานใหม่ + ยอดยูนิฟอร์ม',
+      desc:'รายชื่อพนักงานที่กำลังจะเริ่มงาน สรุปยอดไซส์ยูนิฟอร์มที่ต้องเบิก และความคืบหน้าปฐมนิเทศ',
+      btn:'เปิดรายงาน', btnColor:'teal' },
     { k:'bulkslip', icon:'🖨', color:'dark', title:'พิมพ์ใบนัดหมายจำนวนมาก',
       desc:'เลือกผู้สมัครหลายคนที่มีนัดหมาย แล้วพิมพ์ใบนัดทั้งหมดพร้อมกันในครั้งเดียว',
       btn:'เลือกและพิมพ์', btnColor:'dark' }
@@ -1568,6 +1592,57 @@ function printBulkSlips(){
   document.body.classList.remove('preview-mode');
   document.body.classList.add('printing');
   setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 150);
+}
+// ── 6. รายงานพนักงานเริ่มงานใหม่ + ยอดยูนิฟอร์ม ──
+function reportOnboarding(){
+  // พนักงานที่ผ่านการคัดเลือก (พร้อมเริ่มงาน)
+  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  // เรียงตามวันเริ่มงาน (ถ้ามีนัด start)
+  starters.sort(function(a,b){
+    var da=((a.appts||{}).start||{}).date||'9999'; var db=((b.appts||{}).start||{}).date||'9999';
+    return da<db?-1:1;
+  });
+  // สรุปยอดยูนิฟอร์ม
+  var shirtTotal={}, pantTotal={}, shoeTotal={};
+  starters.forEach(function(r){
+    var u=(r.onboard||{}).uniform||{};
+    if(u.shirt) shirtTotal[u.shirt]=(shirtTotal[u.shirt]||0)+1;
+    if(u.pant) pantTotal[u.pant]=(pantTotal[u.pant]||0)+1;
+    if(u.shoe) shoeTotal[u.shoe]=(shoeTotal[u.shoe]||0)+1;
+  });
+  var sizeChips=function(obj, order){
+    var keys = order ? order.filter(function(k){return obj[k];}) : Object.keys(obj).sort();
+    if(!keys.length) return '<span style="color:var(--muted);font-size:13px">— ยังไม่มีข้อมูล —</span>';
+    return keys.map(function(k){ return '<span class="size-chip">'+esc(k)+' × <b>'+obj[k]+'</b></span>'; }).join(' ');
+  };
+  // ตารางพนักงาน
+  var rows = starters.map(function(r,i){
+    var d=r.data||{}; var u=(r.onboard||{}).uniform||{}; var cl=(r.onboard||{}).checklist||[];
+    var done=cl.filter(function(c){return c.done;}).length;
+    var total=cl.length|| DEFAULT_CHECKLIST.length;
+    var startDate=((r.appts||{}).start||{}).date;
+    var pct=total?Math.round(done/total*100):0;
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+      + '<td>'+esc(d.pos1||'-')+'</td>'
+      + '<td>'+esc(deptOf(d.pos1)||'-')+'</td>'
+      + '<td style="text-align:center">'+(startDate?dateTH(startDate):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</td>'
+      + '<td style="text-align:center">'+(u.shirt||'-')+'</td>'
+      + '<td style="text-align:center">'+(u.pant||'-')+'</td>'
+      + '<td style="text-align:center">'+(u.shoe||'-')+'</td>'
+      + '<td style="text-align:center">'+(cl.length?done+'/'+total+' ('+pct+'%)':'<span style="color:var(--muted)">—</span>')+'</td></tr>';
+  }).join('');
+  var table = starters.length
+    ? '<table class="ats-table"><thead><tr><th>#</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>วันเริ่มงาน</th><th>เสื้อ</th><th>กางเกง</th><th>รองเท้า</th><th>ปฐมนิเทศ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ยังไม่มีพนักงานที่ผ่านการคัดเลือก</div>';
+  return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">🎯 พนักงานเริ่มงานใหม่ + ยอดยูนิฟอร์ม</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานพนักงานเริ่มงานใหม่\')">🖨 พิมพ์</button></div></div>'
+    + '<div id="reportPrintArea"><div class="report-head-print">พนักงานเริ่มงานใหม่ + สรุปยอดยูนิฟอร์ม — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+' · จำนวน '+starters.length+' คน</span></div>'
+    + '<div class="card" style="margin-top:6px"><div class="section-label">📦 สรุปยอดยูนิฟอร์มที่ต้องเตรียม/เบิก</div>'
+    + '<div style="margin-bottom:8px"><span style="font-size:13px;font-weight:600;display:inline-block;width:90px">เสื้อ:</span> '+sizeChips(shirtTotal, SHIRT_SIZES)+'</div>'
+    + '<div style="margin-bottom:8px"><span style="font-size:13px;font-weight:600;display:inline-block;width:90px">กางเกง:</span> '+sizeChips(pantTotal, SHIRT_SIZES)+'</div>'
+    + '<div><span style="font-size:13px;font-weight:600;display:inline-block;width:90px">รองเท้า:</span> '+sizeChips(shoeTotal)+'</div></div>'
+    + '<div class="section-label" style="margin-top:14px">รายชื่อพนักงานเริ่มงานใหม่</div>'
+    + table + '</div>';
 }
 // พิมพ์รายงาน (ตาราง) — ใช้ร่วมกับทุกรายงาน
 function printReport(title){
@@ -1905,6 +1980,86 @@ function buildLogSection(r){
   }).join('');
   return '<div class="section-label" style="margin-top:14px">ประวัติการดำเนินการ Activity Log</div><div class="log-list">'+items+'</div>';
 }
+function buildOnboardingSection(r){
+  // แสดงเมื่อผู้สมัครผ่านการคัดเลือกแล้ว (พร้อมเริ่มงาน)
+  if(r.status!=='ผ่าน') return '';
+  var ob = r.onboard || {};
+  var uni = ob.uniform || {};
+  var checklist = ob.checklist || DEFAULT_CHECKLIST.map(function(t){ return {task:t, done:false}; });
+  var doneCount = checklist.filter(function(c){return c.done;}).length;
+  // ยูนิฟอร์ม
+  var shirtOpts = '<option value="">—</option>'+SHIRT_SIZES.map(function(s){return '<option'+(uni.shirt===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var pantOpts = '<option value="">—</option>'+SHIRT_SIZES.map(function(s){return '<option'+(uni.pant===s?' selected':'')+'>'+s+'</option>';}).join('');
+  var uniformBox = '<div style="background:#fafbfd;border:1px solid var(--border);border-radius:8px;padding:14px">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:10px">👕 ไซส์ยูนิฟอร์ม</div>'
+    + '<div class="form-grid g2" style="gap:10px">'
+    + '<div class="form-group"><label><span class="th">เสื้อ</span></label><select id="uni_shirt">'+shirtOpts+'</select></div>'
+    + '<div class="form-group"><label><span class="th">กางเกง</span></label><select id="uni_pant">'+pantOpts+'</select></div></div>'
+    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">รองเท้า (เบอร์)</span></label><input id="uni_shoe" value="'+val(uni.shoe)+'" placeholder="เช่น 42" inputmode="numeric"></div>'
+    + '<div class="form-group"><label><span class="th">หมายเหตุ</span></label><input id="uni_note" value="'+val(uni.note)+'" placeholder="เช่น ต้องการไซส์พิเศษ"></div></div>'
+    + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveUniform()">บันทึกไซส์ยูนิฟอร์ม</button></div>';
+  // checklist ปฐมนิเทศ
+  var items = checklist.map(function(c,i){
+    return '<label class="chk-row"><input type="checkbox" '+(c.done?'checked':'')+' onchange="toggleChecklist('+i+')">'
+      + '<span style="'+(c.done?'text-decoration:line-through;color:var(--muted)':'')+'">'+esc(c.task)+'</span>'
+      + (c.done&&c.by?'<span class="chk-by">✓ '+esc(c.by)+(c.at?' · '+dateTH(c.at):'')+'</span>':'')
+      + '</label>';
+  }).join('');
+  var checklistBox = '<div style="background:#fafbfd;border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:10px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--primary)">✅ Checklist ปฐมนิเทศวันแรก</div>'
+    + '<span style="font-size:12px;color:'+(doneCount===checklist.length?'var(--success)':'var(--muted)')+'">'+doneCount+'/'+checklist.length+' เสร็จ'+(doneCount===checklist.length?' ✓':'')+'</span></div>'
+    + items
+    + '<div style="display:flex;gap:6px;margin-top:10px"><input id="newChkTask" placeholder="เพิ่มรายการใหม่..." style="flex:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:inherit" onkeydown="if(event.key===\'Enter\')addChecklistItem()">'
+    + '<button class="btn btn-sm" onclick="addChecklistItem()">+ เพิ่ม</button></div></div>';
+  return '<div class="section-label" style="margin-top:14px">🎯 การเริ่มงาน (Onboarding)</div>'
+    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>';
+}
+function saveUniform(){
+  if(!currentRec) return;
+  currentRec.onboard = currentRec.onboard || {};
+  currentRec.onboard.uniform = {
+    shirt: ($('uni_shirt')||{}).value || '',
+    pant: ($('uni_pant')||{}).value || '',
+    shoe: ($('uni_shoe')||{}).value || '',
+    note: ($('uni_note')||{}).value || ''
+  };
+  var entry = logEntry('บันทึกไซส์ยูนิฟอร์ม');
+  apiUpdate(currentRec.id, {onboard:currentRec.onboard, logEntry:entry}).then(function(){
+    currentRec.log=currentRec.log||[]; currentRec.log.push(entry);
+    records.forEach(function(x){ if(x.id===currentRec.id) x.onboard=currentRec.onboard; });
+    toast('บันทึกไซส์ยูนิฟอร์มแล้ว'); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+function curChecklist(){
+  var ob = currentRec.onboard || {};
+  return ob.checklist || DEFAULT_CHECKLIST.map(function(t){ return {task:t, done:false}; });
+}
+function toggleChecklist(i){
+  if(!currentRec) return;
+  var cl = curChecklist();
+  cl[i].done = !cl[i].done;
+  cl[i].by = cl[i].done ? ((session&&session.name)||'-') : '';
+  cl[i].at = cl[i].done ? new Date().toISOString() : '';
+  persistChecklist(cl, (cl[i].done?'ทำเสร็จ: ':'ยกเลิก: ')+cl[i].task);
+}
+function addChecklistItem(){
+  var inp=$('newChkTask'); if(!inp||!inp.value.trim()) return;
+  var cl = curChecklist();
+  cl.push({task:inp.value.trim(), done:false});
+  persistChecklist(cl, 'เพิ่มรายการ: '+inp.value.trim());
+}
+function persistChecklist(cl, logMsg){
+  currentRec.onboard = currentRec.onboard || {};
+  currentRec.onboard.checklist = cl;
+  var entry = logEntry(logMsg);
+  apiUpdate(currentRec.id, {onboard:currentRec.onboard, logEntry:entry}).then(function(){
+    currentRec.log=currentRec.log||[]; currentRec.log.push(entry);
+    records.forEach(function(x){ if(x.id===currentRec.id) x.onboard=currentRec.onboard; });
+    render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
 function buildDocsSection(r){
   var d = r.data||{};
   var docs = d.docs||[];
@@ -1963,6 +2118,7 @@ function viewDetail(){
     + (r.photo?'<div><img src="'+r.photo+'" style="width:110px;height:138px;object-fit:cover;border:1px solid var(--border);border-radius:4px"></div>':'')
     + '</div>'
     + buildApptSection(r)
+    + buildOnboardingSection(r)
     + buildDocsSection(r)
     + (eduRows?'<div class="section-label" style="margin-top:14px">การศึกษา</div><table class="ats-table"><thead><tr><th>ระดับ</th><th>สถาบัน</th><th>สาขา</th><th>ปีจบ</th><th>GPA</th></tr></thead><tbody>'+eduRows+'</tbody></table>':'')
     + (workRows?'<div class="section-label" style="margin-top:14px">ประวัติการทำงาน</div><table class="ats-table"><thead><tr><th>บริษัท</th><th>ตำแหน่ง</th><th>ช่วงเวลา</th><th>เงินเดือน</th><th>สาเหตุลาออก</th></tr></thead><tbody>'+workRows+'</tbody></table>':'')
@@ -2160,10 +2316,21 @@ function buildSlipHTML(rec, typeKey){
     + '<tr><td style="border:none;padding:2mm 0;vertical-align:top">📍 สถานที่</td><td style="border:none;padding:2mm 0"><b>'+(esc(a.place)||'-')+'</b></td></tr>'
     + (a.note?'<tr><td style="border:none;padding:2mm 0;vertical-align:top">📝 หมายเหตุ</td><td style="border:none;padding:2mm 0">'+esc(a.note)+'</td></tr>':'')
     + '</table></div>'
+    + (typeKey==='start' ? startOrientationBlock_(rec) : '')
     + '<p style="margin-top:4mm;font-size:10pt">กรุณานำบัตรประชาชนและเอกสารที่เกี่ยวข้องมาในวันนัดหมาย หากมีข้อสงสัยหรือต้องการเปลี่ยนแปลงนัดหมาย กรุณาติดต่อ '+esc(co.hrPhone||co.hrEmail||'ฝ่ายทรัพยากรบุคคล')+'</p>'
     + '<p style="margin-top:8mm;font-size:10pt">ขอแสดงความนับถือ<br><b>ฝ่ายทรัพยากรบุคคล</b><br>'+esc(co.name||'')+'<br>'+addrHtml+'</p>'
     + '<div class="pp-footer" style="margin-top:10mm"><span><b>'+CONFIG.DOC.no+'</b> ใบนัดหมาย</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(rec.id)+'</span></div>'
     + '</div>';
+}
+function startOrientationBlock_(rec){
+  var ob = rec.onboard||{};
+  var cl = (ob.checklist && ob.checklist.length) ? ob.checklist : DEFAULT_CHECKLIST.map(function(t){return {task:t};});
+  var items = cl.map(function(c){ return '<li>'+esc(c.task)+'</li>'; }).join('');
+  return '<div style="margin-top:4mm;border:1pt solid #cfe0f5;border-radius:3mm;padding:4mm;background:#fafdff">'
+    + '<div style="font-size:10.5pt;font-weight:700;color:#1a4f8a;margin-bottom:2mm">📋 กำหนดการปฐมนิเทศวันแรก</div>'
+    + '<div style="font-size:9.5pt;margin-bottom:2mm">สิ่งที่ต้องเตรียมมา: บัตรประชาชน · สำเนาทะเบียนบ้าน · สำเนาวุฒิการศึกษา · เลขบัญชีธนาคาร · รูปถ่าย 1 นิ้ว 2 ใบ</div>'
+    + '<div style="font-size:9.5pt;font-weight:600;margin-bottom:1mm">กิจกรรมในวันแรก:</div>'
+    + '<ol style="margin:0;padding-left:5mm;font-size:9.5pt;line-height:1.7">'+items+'</ol></div>';
 }
 function printApptSlip(typeKey){
   if(!currentRec) return;
