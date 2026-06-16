@@ -46,11 +46,13 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .g2{grid-template-columns:1fr 1fr}
 .g3{grid-template-columns:2fr 2fr 1fr}
 .g4{grid-template-columns:2fr 2fr 1fr 1fr}
-.form-group{display:flex;flex-direction:column;gap:4px}
+.g4eq{display:grid;grid-template-columns:1fr 1fr 1fr 1fr}
+.form-group{display:flex;flex-direction:column;gap:4px;min-width:0}
 .form-group label{font-size:12px;color:var(--muted);font-weight:500}
 .form-group label .th{color:var(--text)}
 .form-group label .en{color:var(--muted);font-size:11px}
 .form-group input,.form-group select,.form-group textarea{
+  width:100%;max-width:100%;
   padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);
   font-size:13px;font-family:inherit;background:#fff;color:var(--text);
   transition:border-color .15s,box-shadow .15s;outline:none}
@@ -252,7 +254,7 @@ code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:11px;color:v
 body.preview-mode #printArea{display:block;background:#9aa5b1;padding:10mm 0}
 body.preview-mode .pp{box-shadow:0 2px 12px rgba(0,0,0,.3)}
 @media(max-width:640px){
-  .g2,.g3,.g4{grid-template-columns:1fr!important}
+  .g2,.g3,.g4,.g4eq{grid-template-columns:1fr 1fr!important}
   .toolbar{gap:6px}
   .btn{padding:7px 12px;font-size:12px}
   .detail-grid{grid-template-columns:1fr}
@@ -1635,7 +1637,8 @@ function reportOnboarding(){
     ? '<table class="ats-table"><thead><tr><th>#</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>วันเริ่มงาน</th><th>เสื้อ</th><th>กางเกง</th><th>รองเท้า</th><th>ปฐมนิเทศ</th></tr></thead><tbody>'+rows+'</tbody></table>'
     : '<div class="empty-state">ยังไม่มีพนักงานที่ผ่านการคัดเลือก</div>';
   return '<div class="toolbar">'+reportBack()+'<h2 style="font-size:16px;color:var(--primary);margin-left:8px">🎯 พนักงานเริ่มงานใหม่ + ยอดยูนิฟอร์ม</h2>'
-    + '<div style="margin-left:auto"><button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานพนักงานเริ่มงานใหม่\')">🖨 พิมพ์</button></div></div>'
+    + '<div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-sm" style="background:#b06d10;color:#fff" onclick="exportTigerSoft()">🐯 สร้างไฟล์ TigerSoft</button>'
+    + '<button class="btn btn-sm btn-primary" onclick="printReport(\'รายงานพนักงานเริ่มงานใหม่\')">🖨 พิมพ์</button></div></div>'
     + '<div id="reportPrintArea"><div class="report-head-print">พนักงานเริ่มงานใหม่ + สรุปยอดยูนิฟอร์ม — '+esc((settings&&settings.company&&settings.company.name)||'Akara Resources')+'<br><span style="font-size:11px;font-weight:400">พิมพ์เมื่อ '+dateTH(new Date().toISOString())+' · จำนวน '+starters.length+' คน</span></div>'
     + '<div class="card" style="margin-top:6px"><div class="section-label">📦 สรุปยอดยูนิฟอร์มที่ต้องเตรียม/เบิก</div>'
     + '<div style="margin-bottom:8px"><span style="font-size:13px;font-weight:600;display:inline-block;width:90px">เสื้อ:</span> '+sizeChips(shirtTotal, SHIRT_SIZES)+'</div>'
@@ -1643,6 +1646,84 @@ function reportOnboarding(){
     + '<div><span style="font-size:13px;font-weight:600;display:inline-block;width:90px">รองเท้า:</span> '+sizeChips(shoeTotal)+'</div></div>'
     + '<div class="section-label" style="margin-top:14px">รายชื่อพนักงานเริ่มงานใหม่</div>'
     + table + '</div>';
+}
+// ── สร้างไฟล์นำเข้า TigerSoft (125 คอลัมน์ ตรงตามเทมเพลต) ──
+function thDate(iso){
+  if(!iso) return '';
+  var d = new Date(iso); if(isNaN(d)) return '';
+  var dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear()+543;
+  return dd+'/'+mm+'/'+yy;  // dd/MM/yyyy พ.ศ. ตามตัวอย่างเทมเพลต
+}
+function exportTigerSoft(){
+  if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ ลองรีเฟรชหน้า'); return; }
+  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  if(!starters.length){ alert('ยังไม่มีพนักงานที่ผ่านการคัดเลือก'); return; }
+  // ตรวจว่ามีใครยังไม่กรอกข้อมูล TigerSoft ที่จำเป็น
+  var missing = starters.filter(function(r){ var t=(r.onboard||{}).tiger||{}; return !t.company||!t.empid||!t.sex||!t.marital||!t.salarytype; });
+  if(missing.length){
+    var names = missing.map(function(r){var d=r.data||{};return (d.firstName||'')+' '+(d.lastName||'');}).join(', ');
+    if(!confirm('มีพนักงาน '+missing.length+' คนที่ยังกรอกข้อมูล TigerSoft ไม่ครบ:\n'+names+'\n\nช่องที่ขาดจะเว้นว่างในไฟล์ ต้องการสร้างไฟล์ต่อหรือไม่?')) return;
+  }
+  // 125 ฟิลด์ตามลำดับเทมเพลต (index 0 = คอลัมน์คำอธิบาย, 1-124 = ข้อมูล)
+  var FIELD_NAMES = ['','ID_Company','ID_Emp','ID_Card','NT','NameT','SurnameT','NameE','SurnameE','Sex','Section','Department','Division','Level','Work Location','Scope of Work','Cost Center','Group Approve','Position','P_Level','Type_Salary','FamilyStatus','D_Start','Numproof','D_Contain','D_End','WorkOut','ID_Code','ID_CodeEnd','ID_Tax','ID_Social','ID_Backup','Hospital','Salary','Pre-1','Pre-2','Pre-3','Pre-4','Pre-5','PofB','DofB','Height','Weight','Citizen','Nationality','Religion','Blood','Tel','Email','N_service','Hobbies','Sport','Typing_T','Typing_E','D_LicenceCar','Id_Car','D_LicenceMotorcy','Id_Motorcy','Father_N','Father_Oc','Father_Wp','Father_Tel','Mather_N','Mather_Oc','Mather_Wp','Mather_Tel','Spouses_N','Spouses_F','Spouses_L','Spouses_Oc','Spouses_Wp','Spouses_Tel','Num_B','Num_S','Num_D','Order_B','Company_Add1','Tel1','Position1','Job_Discription1','Note1','S_Last1','PR_Add','PR_Soi','PR_Street','PR_District','PR_Aumphur','PR_Province','PR_Country','PR_PostalCode','PR_Tel','RE_Add','RE_Soi','RE_Street','RE_District','RE_Aumphur','RE_Province','RE_Country','RE_PostalCode','RE_Tel','Institute1','Country1','Degree1','Major1','Grade1','YIn1','Yout1','AccountNo','Bank','ChildStudy','IdenStu1','IdenStu2','IdenStu3','ChildNoStudy','IdenNStu1','IdenNStu2','IdenNStu3','SpouseWS','TaxType','Insure','BorrowPay','GiveMoney','SocialNo','Type_Emp','End'];
+  // แถวหัว (อ้างอิงเทมเพลต): ชื่อฟิลด์
+  var aoa = [];
+  aoa.push(FIELD_NAMES.slice());  // แถว 1: ชื่อฟิลด์ระบบ (header)
+  // แถวข้อมูล: 1 แถวต่อพนักงาน 1 คน
+  starters.forEach(function(r){
+    var d=r.data||{}; var ob=r.onboard||{}; var t=ob.tiger||{};
+    var startAppt=(r.appts||{}).start||{};
+    var firstEdu=(d.edu&&d.edu[0])||{};
+    var row=new Array(125).fill('');
+    function set(name,v){ var i=FIELD_NAMES.indexOf(name); if(i>0) row[i]=(v===undefined||v===null)?'':v; }
+    set('ID_Company', t.company);
+    set('ID_Emp', t.empid);
+    set('ID_Card', t.cardid||t.empid);
+    set('NT', d.prefix||'');
+    set('NameT', d.firstName);
+    set('SurnameT', d.lastName);
+    set('Sex', t.sex);
+    set('Section', deptOf(d.pos1)||'');       // ฝ่าย
+    set('Department', t.department||'');        // ส่วน
+    set('Position', d.pos1);
+    set('Level', t.level||'');
+    set('Type_Salary', t.salarytype);
+    set('FamilyStatus', t.marital);
+    set('D_Start', thDate(startAppt.date));
+    set('WorkOut', 'B');                        // อยู่ = B
+    set('ID_Code', d.idCard);
+    set('ID_CodeEnd', thDate(d.idExpiry));
+    set('ID_Tax', t.tax||d.idCard);
+    set('ID_Social', t.social||d.idCard);
+    set('Hospital', t.hospital||'');
+    set('Salary', t.salary||d.salary||'');
+    set('DofB', thDate(d.dob));
+    set('Tel', d.phone);
+    set('Email', d.email);
+    set('Spouses_N', t.marital==='สมรส' ? (t.spousePrefix||'นาย') : '-');  // คำนำหน้าคู่สมรส (จำเป็น)
+    // ที่อยู่แบบแยกช่อง (ตรงกับ TigerSoft)
+    var pr=t.pr||{}, re=t.re||{};
+    set('PR_Add', pr.add||''); set('PR_Soi', pr.soi||''); set('PR_Street', pr.street||'');
+    set('PR_District', pr.district||''); set('PR_Aumphur', pr.amphur||''); set('PR_Province', pr.province||'');
+    set('PR_PostalCode', pr.postal||''); set('PR_Country', pr.country||'');
+    set('RE_Add', re.add||''); set('RE_Soi', re.soi||''); set('RE_Street', re.street||'');
+    set('RE_District', re.district||''); set('RE_Aumphur', re.amphur||''); set('RE_Province', re.province||'');
+    set('RE_PostalCode', re.postal||''); set('RE_Country', re.country||'');
+    set('Institute1', firstEdu.school||'');
+    set('Degree1', firstEdu.level||'');
+    set('Major1', firstEdu.major||'');
+    set('Grade1', firstEdu.gpa||'');
+    set('Yout1', firstEdu.year||'');
+    set('AccountNo', t.account||'');
+    set('Bank', t.bank||'');
+    set('End', 'End');                          // ค่าบังคับปิดเรคคอร์ด
+    aoa.push(row);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Import');
+  XLSX.writeFile(wb, 'TigerSoft_Import_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('สร้างไฟล์ TigerSoft แล้ว ('+starters.length+' คน)');
 }
 // พิมพ์รายงาน (ตาราง) — ใช้ร่วมกับทุกรายงาน
 function printReport(title){
@@ -1926,7 +2007,7 @@ function buildApptSection(r){
         + '<input id="appt_health_place" value="'+val(pre.place)+'" placeholder="หรือพิมพ์สถานที่เอง" style="margin-top:6px'+((pre.place && !hospitalKnown(pre.place))?'':';display:none')+'"></div>';
       // ข้อมูลสำหรับใบส่งตัวตรวจสุขภาพ (ยื่นโรงพยาบาล) — เติมค่าจากใบสมัครให้อัตโนมัติ
       var dd = r.data||{};
-      placeField += '<div style="margin-top:10px;padding:10px;background:#f0f6ff;border:1px solid #cfe0f5;border-radius:6px">'
+      placeField += '<div class="referral-box" style="margin-top:10px;padding:10px;background:#f0f6ff;border:1px solid #cfe0f5;border-radius:6px">'
         + '<div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">📋 ข้อมูลสำหรับใบส่งตัวตรวจสุขภาพ (ยื่นโรงพยาบาล)</div>'
         + '<div class="form-grid g2" style="gap:8px">'
         + '<div class="form-group"><label><span class="th">ฝ่าย (Division)</span></label><input id="appt_health_dept" value="'+val(pre.dept||dd.dept||dd.division||'')+'" placeholder="เช่น Processing"></div>'
@@ -2014,7 +2095,94 @@ function buildOnboardingSection(r){
     + '<div style="display:flex;gap:6px;margin-top:10px"><input id="newChkTask" placeholder="เพิ่มรายการใหม่..." style="flex:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:inherit" onkeydown="if(event.key===\'Enter\')addChecklistItem()">'
     + '<button class="btn btn-sm" onclick="addChecklistItem()">+ เพิ่ม</button></div></div>';
   return '<div class="section-label" style="margin-top:14px">🎯 การเริ่มงาน (Onboarding)</div>'
-    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>';
+    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>'
+    + buildTigerSoftBox(r);
+}
+// กล่องข้อมูลสำหรับส่งออก TigerSoft (ฟิลด์ที่ ATS ไม่มี ให้ HR เติมตอนรับเข้าทำงาน)
+function buildTigerSoftBox(r){
+  var ts = (r.onboard||{}).tiger || {};
+  var d = r.data||{};
+  var sel=function(id,opts,cur){
+    return '<select id="'+id+'"><option value="">— เลือก —</option>'+opts.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+  };
+  return '<div style="background:#fff7ed;border:1px solid #f0c896;border-radius:8px;padding:14px;margin-top:10px">'
+    + '<div style="font-size:13px;font-weight:600;color:#b06d10;margin-bottom:4px">🐯 ข้อมูลสำหรับนำเข้า TigerSoft</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">กรอกข้อมูลที่ระบบ ATS ไม่มี เพื่อใช้สร้างไฟล์นำเข้า TigerSoft (ช่องที่มี * จำเป็นต้องกรอก)</div>'
+    + '<div class="form-grid g3" style="gap:10px">'
+    + '<div class="form-group"><label><span class="th">รหัสบริษัท *</span></label><input id="ts_company" value="'+val(ts.company)+'" placeholder="เช่น AKR"></div>'
+    + '<div class="form-group"><label><span class="th">รหัสพนักงาน *</span></label><input id="ts_empid" value="'+val(ts.empid)+'" placeholder="เช่น 6701"></div>'
+    + '<div class="form-group"><label><span class="th">รหัสบัตรรูด *</span></label><input id="ts_cardid" value="'+val(ts.cardid||ts.empid)+'" placeholder="รหัสบัตรตอกบัตร"></div></div>'
+    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">เพศ *</span></label>'+sel('ts_sex',['ชาย','หญิง'],ts.sex)+'</div>'
+    + '<div class="form-group"><label><span class="th">สถานะครอบครัว *</span></label>'+sel('ts_marital',['โสด','สมรส','หม้าย','หย่า'],ts.marital)+'</div>'
+    + '<div class="form-group"><label><span class="th">วิธีคิดค่าจ้าง *</span></label>'+sel('ts_salarytype',['รายเดือน (Month)','รายวัน (Day)'],ts.salarytype)+'</div></div>'
+    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">เลขผู้เสียภาษี *</span></label><input id="ts_tax" value="'+val(ts.tax||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div>'
+    + '<div class="form-group"><label><span class="th">เลขประกันสังคม *</span></label><input id="ts_social" value="'+val(ts.social||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div></div>'
+    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">เงินเดือน</span></label><input id="ts_salary" value="'+val(ts.salary||d.salary)+'" placeholder="เช่น 15000" inputmode="numeric"></div>'
+    + '<div class="form-group"><label><span class="th">รพ.ประกันสังคม</span></label><input id="ts_hospital" value="'+val(ts.hospital)+'" placeholder="ระบุถ้ามี"></div>'
+    + '<div class="form-group"><label><span class="th">ระดับพนักงาน</span></label><input id="ts_level" value="'+val(ts.level)+'" placeholder="ระบุถ้ามี"></div></div>'
+    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">เลขบัญชีธนาคาร</span></label><input id="ts_account" value="'+val(ts.account)+'" placeholder="ระบุถ้ามี"></div>'
+    + '<div class="form-group"><label><span class="th">ธนาคาร</span></label><input id="ts_bank" value="'+val(ts.bank)+'" placeholder="เช่น กสิกรไทย"></div></div>'
+    + tigerAddressBlock_('pr','ที่อยู่ปัจจุบัน', ts.pr||autoSplitAddr_(d.presentAddr||d.houseAddr))
+    + tigerAddressBlock_('re','ที่อยู่ตามทะเบียนบ้าน', ts.re||autoSplitAddr_(d.houseAddr))
+    + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveTigerFields()">💾 บันทึกข้อมูล TigerSoft</button>'
+    + '<span style="font-size:11px;color:var(--muted);margin-left:10px">สร้างไฟล์นำเข้าได้ที่ ศูนย์รวมรายงาน → พนักงานเริ่มงานใหม่</span></div>';
+}
+// บล็อกกรอกที่อยู่แบบแยกช่อง (ตรงกับ TigerSoft)
+function tigerAddressBlock_(pfx, title, a){
+  a = a||{};
+  var f=function(k,label,ph,w){ return '<div class="form-group"'+(w?' style="grid-column:span '+w+'"':'')+'><label><span class="th">'+label+'</span></label><input id="ts_'+pfx+'_'+k+'" value="'+val(a[k])+'" placeholder="'+(ph||'')+'"></div>'; };
+  return '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e0c89a">'
+    + '<div style="font-size:12px;font-weight:600;color:#b06d10;margin-bottom:8px">📍 '+title+' (แยกช่องตาม TigerSoft)</div>'
+    + '<div class="form-grid g4eq" style="gap:8px">'
+    + f('add','เลขที่','เช่น 99/9') + f('soi','ซอย','-') + f('street','ถนน','-') + f('district','ตำบล/แขวง','')
+    + '</div><div class="form-grid g4eq" style="gap:8px;margin-top:6px">'
+    + f('amphur','อำเภอ/เขต','') + f('province','จังหวัด','') + f('postal','รหัสไปรษณีย์','') + f('country','ประเทศ','ไทย')
+    + '</div></div>';
+}
+// พยายามแยกที่อยู่จากข้อความรวม (best-effort) — ดึงรหัสไปรษณีย์ + จังหวัดที่พบบ่อย
+function autoSplitAddr_(text){
+  if(!text) return {};
+  var s=String(text).trim();
+  var out={country:'ไทย'};
+  var zip=s.match(/\b(\d{5})\b/);
+  if(zip){ out.postal=zip[1]; }
+  // ต้องมีจุด (ต./อ./จ.) หรือคำเต็ม (ตำบล/อำเภอ/จังหวัด) เพื่อกันจับตัวอักษรกลางคำ
+  var provM=s.match(/(?:จังหวัด|จ\.)\s*([^\s,]+)/);
+  if(provM) out.province=provM[1];
+  var ampM=s.match(/(?:อำเภอ|เขต|อ\.)\s*([^\s,]+)/);
+  if(ampM) out.amphur=ampM[1];
+  var disM=s.match(/(?:ตำบล|แขวง|ต\.)\s*([^\s,]+)/);
+  if(disM) out.district=disM[1];
+  var addM=s.match(/^([\d/.\-]+(?:\s*หมู่\s*\d+)?)/);
+  if(addM) out.add=addM[1].trim();
+  return out;
+}
+function saveTigerFields(){
+  if(!currentRec) return;
+  currentRec.onboard = currentRec.onboard || {};
+  var addr=function(pfx){
+    return { add:($('ts_'+pfx+'_add')||{}).value||'', soi:($('ts_'+pfx+'_soi')||{}).value||'', street:($('ts_'+pfx+'_street')||{}).value||'',
+      district:($('ts_'+pfx+'_district')||{}).value||'', amphur:($('ts_'+pfx+'_amphur')||{}).value||'', province:($('ts_'+pfx+'_province')||{}).value||'',
+      postal:($('ts_'+pfx+'_postal')||{}).value||'', country:($('ts_'+pfx+'_country')||{}).value||'' };
+  };
+  currentRec.onboard.tiger = {
+    company:($('ts_company')||{}).value||'', empid:($('ts_empid')||{}).value||'', cardid:($('ts_cardid')||{}).value||'',
+    sex:($('ts_sex')||{}).value||'', marital:($('ts_marital')||{}).value||'', salarytype:($('ts_salarytype')||{}).value||'',
+    tax:($('ts_tax')||{}).value||'', social:($('ts_social')||{}).value||'', salary:($('ts_salary')||{}).value||'',
+    hospital:($('ts_hospital')||{}).value||'', level:($('ts_level')||{}).value||'',
+    account:($('ts_account')||{}).value||'', bank:($('ts_bank')||{}).value||'',
+    pr:addr('pr'), re:addr('re')
+  };
+  var entry = logEntry('บันทึกข้อมูล TigerSoft');
+  apiUpdate(currentRec.id, {onboard:currentRec.onboard, logEntry:entry}).then(function(){
+    currentRec.log=currentRec.log||[]; currentRec.log.push(entry);
+    records.forEach(function(x){ if(x.id===currentRec.id) x.onboard=currentRec.onboard; });
+    toast('บันทึกข้อมูล TigerSoft แล้ว'); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
 function saveUniform(){
   if(!currentRec) return;
