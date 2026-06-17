@@ -176,6 +176,23 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
 .otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
 /* Reports Center */
+/* Appointment menu */
+.seg-toggle{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg-toggle button{border:none;background:#fff;padding:6px 14px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--muted)}
+.seg-toggle button.on{background:var(--primary);color:#fff}
+.btn-xs{padding:3px 8px!important;font-size:11px!important;border-radius:5px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.cal-dow{text-align:center;font-size:12px;font-weight:600;color:var(--muted);padding:4px 0}
+.cal-cell{min-height:84px;border:1px solid var(--border);border-radius:6px;padding:4px;background:#fff;overflow:hidden}
+.cal-cell.empty{background:transparent;border:none}
+.cal-cell.today{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+.cal-day{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.cal-chip{font-size:10px;padding:2px 5px;border-radius:4px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.cal-interview{background:#8e44ad}.cal-health{background:#2c7a7b}.cal-start{background:#c8851a}
+.cal-more{font-size:10px;color:var(--muted);padding:1px 4px}
+.cal-legend{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.cal-legend .cal-chip{font-size:11px;padding:3px 10px}
+@media(max-width:680px){.cal-cell{min-height:60px}.cal-chip{font-size:9px}}
 /* Onboarding */
 .onboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
 @media(max-width:680px){.onboard-grid{grid-template-columns:1fr}}
@@ -346,6 +363,9 @@ var hrUsersList = [];         // รายชื่อ HR (สำหรับห
 var settingsTab = 'company';  // company | stages | hospitals | templates | accounts
 var reportView = null;        // null = หน้าการ์ดรวม | summary | jobsrep | appointments | stats | bulkslip
 var onboardView = null;       // null = รายการพนักงาน | id ของพนักงานที่กำลังดู
+var apptView = null;          // มุมมองนัดหมาย: 'list' (รายการ) | 'calendar' (ปฏิทิน)
+var apptFilter = { type:'', when:'upcoming' };  // ตัวกรองนัดหมาย
+var apptCalMonth = null;      // เดือนที่แสดงในปฏิทิน (YYYY-MM)
 var reportFilter = { status:'', position:'', from:'', to:'' };
 var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
@@ -1272,12 +1292,13 @@ function hrShell(content){
   var menuItems = [
     {k:'applicants', icon:'📋', l:'ทะเบียนผู้สมัคร'},
     {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
+    {k:'appts',      icon:'📅', l:'ตารางนัดหมาย'},
     {k:'reports',    icon:'📄', l:'ศูนย์รวมรายงาน'}
   ];
   if(canOnboard) menuItems.push({k:'onboard', icon:'🎯', l:'เริ่มงาน (Onboarding)'});
   menuItems.push({k:'settings', icon:'⚙️', l:'ตั้งค่าระบบ'});
   var menu = menuItems.map(function(m){
-    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;reportView=null;onboardView=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
+    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;reportView=null;onboardView=null;apptView=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
   }).join('');
   return '<div class="hr-layout">'
     + '<aside class="sidebar"><div class="side-user">'
@@ -1293,6 +1314,7 @@ function hrShell(content){
 }
 function viewDashboard(){
   if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
+  if(hrMenu==='appts') return hrShell(viewAppointments());
   if(hrMenu==='reports') return hrShell(viewReports());
   if(hrMenu==='settings') return hrShell(viewSettings());
   if(hrMenu==='onboard'){
@@ -1444,6 +1466,114 @@ function reportJobs(){
     + table + '</div>';
 }
 // ── 3. สรุปการนัดหมายที่จะถึงกำหนด ──
+// ── เมนูตารางนัดหมาย (ศูนย์รวมจัดการนัด — ส่งอีเมล/พิมพ์/แก้ไขได้เลย) ──
+function collectAppts_(){
+  var items = [];
+  records.forEach(function(r){
+    var a=r.appts||{};
+    APPT_TYPES.forEach(function(t){
+      if(a[t.k] && a[t.k].date){ items.push({ rec:r, type:t, appt:a[t.k] }); }
+    });
+  });
+  return items;
+}
+function viewAppointments(){
+  if(!apptView) apptView='list';
+  var toggle = '<div class="seg-toggle">'
+    + '<button class="'+(apptView==='list'?'on':'')+'" onclick="apptView=\'list\';render()">📋 รายการ</button>'
+    + '<button class="'+(apptView==='calendar'?'on':'')+'" onclick="apptView=\'calendar\';render()">🗓 ปฏิทิน</button></div>';
+  var head = '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">📅 ตารางนัดหมาย</h2>'
+    + '<div style="margin-left:auto">'+toggle+'</div></div>';
+  return head + (apptView==='calendar' ? apptCalendarView() : apptListView());
+}
+function apptListView(){
+  var today = new Date().toISOString().slice(0,10);
+  var items = collectAppts_();
+  // ตัวกรอง
+  var typeOpts = '<option value="">ทุกประเภท</option>'+APPT_TYPES.map(function(t){return '<option value="'+t.k+'"'+(apptFilter.type===t.k?' selected':'')+'>'+t.icon+' '+t.l+'</option>';}).join('');
+  if(apptFilter.type) items=items.filter(function(x){return x.type.k===apptFilter.type;});
+  var upcoming = items.filter(function(x){return x.appt.date>=today;});
+  var past = items.filter(function(x){return x.appt.date<today;});
+  upcoming.sort(function(x,y){ return (x.appt.date+(x.appt.time||'')) < (y.appt.date+(y.appt.time||'')) ? -1 : 1; });
+  past.sort(function(x,y){ return (x.appt.date+(x.appt.time||'')) > (y.appt.date+(y.appt.time||'')) ? -1 : 1; });
+  var show = apptFilter.when==='past' ? past : (apptFilter.when==='all'? upcoming.concat(past) : upcoming);
+  var rows = show.map(function(x){
+    var d=x.rec.data||{};
+    var hasEmail = !!d.email;
+    var emailBtn = hasEmail
+      ? '<button class="btn btn-xs btn-outline" onclick="apptAction(\''+x.rec.id+'\',\''+x.type.k+'\',\'email\')">✉ แจ้ง</button>'
+      : '<span class="btn btn-xs" style="color:var(--muted);cursor:default" title="ไม่มีอีเมล">☎</span>';
+    return '<tr><td>'+x.type.icon+' '+x.type.l+'</td>'
+      + '<td><strong>'+dateTH(x.appt.date)+'</strong>'+(x.appt.time?'<br><span style="font-size:11px;color:var(--muted)">'+esc(x.appt.time)+' น.</span>':'')+'</td>'
+      + '<td><a style="color:var(--primary);cursor:pointer" onclick="openDetail(\''+x.rec.id+'\')">'+esc(d.firstName)+' '+esc(d.lastName)+'</a><br><span style="font-size:11px;color:var(--muted)">'+esc(d.pos1||'-')+'</span></td>'
+      + '<td>'+esc(x.appt.place||'-')+'</td>'
+      + '<td>'+esc(d.phone||d.email||'-')+'</td>'
+      + '<td>'+(x.appt.notified?'<span class="status-pill st-ผ่าน">แจ้งแล้ว</span>':'<span class="status-pill st-คัดกรอง">ยังไม่แจ้ง</span>')+'</td>'
+      + '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+emailBtn
+      + '<button class="btn btn-xs btn-outline" onclick="apptAction(\''+x.rec.id+'\',\''+x.type.k+'\',\'print\')">🖨 ใบนัด</button>'
+      + '<button class="btn btn-xs" onclick="apptAction(\''+x.rec.id+'\',\''+x.type.k+'\',\'edit\')">แก้ไข</button>'
+      + '</div></td></tr>';
+  }).join('');
+  var table = show.length
+    ? '<table class="ats-table"><thead><tr><th>ประเภท</th><th>วันเวลา</th><th>ผู้สมัคร</th><th>สถานที่</th><th>ติดต่อ</th><th>การแจ้ง</th><th>จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ไม่มีนัดหมาย'+(apptFilter.when==='upcoming'?'ที่จะถึงกำหนด':'')+'</div>';
+  return '<div class="report-filter">'
+    + '<div><label>ประเภท</label><select onchange="apptFilter.type=this.value;render()">'+typeOpts+'</select></div>'
+    + '<div><label>ช่วงเวลา</label><select onchange="apptFilter.when=this.value;render()">'
+      + '<option value="upcoming"'+(apptFilter.when==='upcoming'?' selected':'')+'>ที่จะถึงกำหนด</option>'
+      + '<option value="past"'+(apptFilter.when==='past'?' selected':'')+'>ผ่านมาแล้ว</option>'
+      + '<option value="all"'+(apptFilter.when==='all'?' selected':'')+'>ทั้งหมด</option></select></div>'
+    + '<div style="margin-left:auto;align-self:flex-end;font-size:12px;color:var(--muted)">รวม '+show.length+' นัด</div>'
+    + '</div>'+table;
+}
+function apptCalendarView(){
+  var now = new Date();
+  if(!apptCalMonth) apptCalMonth = now.toISOString().slice(0,7);
+  var parts=apptCalMonth.split('-'); var yr=+parts[0], mo=+parts[1]-1;
+  var first=new Date(yr,mo,1), startDow=first.getDay(), daysIn=new Date(yr,mo+1,0).getDate();
+  // จัดกลุ่มนัดตามวันที่
+  var byDate={};
+  collectAppts_().forEach(function(x){
+    if(apptFilter.type && x.type.k!==apptFilter.type) return;
+    (byDate[x.appt.date]=byDate[x.appt.date]||[]).push(x);
+  });
+  var todayStr=now.toISOString().slice(0,10);
+  var THMONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  var dow=['อา','จ','อ','พ','พฤ','ศ','ส'];
+  var cells='';
+  dow.forEach(function(dn){ cells+='<div class="cal-dow">'+dn+'</div>'; });
+  for(var i=0;i<startDow;i++) cells+='<div class="cal-cell empty"></div>';
+  for(var day=1;day<=daysIn;day++){
+    var ds=yr+'-'+('0'+(mo+1)).slice(-2)+'-'+('0'+day).slice(-2);
+    var dayAppts=byDate[ds]||[];
+    var chips=dayAppts.slice(0,4).map(function(x){
+      var d=x.rec.data||{};
+      return '<div class="cal-chip cal-'+x.type.k+'" onclick="openDetail(\''+x.rec.id+'\')" title="'+esc(x.type.l)+' — '+esc(d.firstName)+' '+esc(d.lastName)+(x.appt.time?' '+esc(x.appt.time)+' น.':'')+'">'+x.type.icon+' '+(x.appt.time?esc(x.appt.time)+' ':'')+esc(d.firstName)+'</div>';
+    }).join('');
+    if(dayAppts.length>4) chips+='<div class="cal-more">+'+(dayAppts.length-4)+' เพิ่มเติม</div>';
+    cells+='<div class="cal-cell'+(ds===todayStr?' today':'')+'"><div class="cal-day">'+day+'</div>'+chips+'</div>';
+  }
+  return '<div class="report-filter"><div><label>ประเภท</label><select onchange="apptFilter.type=this.value;render()">'
+    + '<option value="">ทุกประเภท</option>'+APPT_TYPES.map(function(t){return '<option value="'+t.k+'"'+(apptFilter.type===t.k?' selected':'')+'>'+t.icon+' '+t.l+'</option>';}).join('')
+    + '</select></div>'
+    + '<div style="margin-left:auto;display:flex;align-items:center;gap:10px">'
+    + '<button class="btn btn-sm" onclick="apptCalNav(-1)">‹</button>'
+    + '<strong style="min-width:140px;text-align:center">'+THMONTHS[mo]+' '+(yr+543)+'</strong>'
+    + '<button class="btn btn-sm" onclick="apptCalNav(1)">›</button></div></div>'
+    + '<div class="cal-grid">'+cells+'</div>'
+    + '<div class="cal-legend">'+APPT_TYPES.map(function(t){return '<span class="cal-chip cal-'+t.k+'" style="cursor:default">'+t.icon+' '+t.l+'</span>';}).join('')+'</div>';
+}
+function apptCalNav(delta){
+  var p=apptCalMonth.split('-'); var d=new Date(+p[0],+p[1]-1+delta,1);
+  apptCalMonth=d.toISOString().slice(0,7); render();
+}
+function apptAction(id, typeKey, action){
+  currentRec = records.filter(function(r){return r.id===id;})[0]||null;
+  if(!currentRec) return;
+  if(action==='email'){ sendApptEmail(typeKey); }
+  else if(action==='print'){ printApptSlip(typeKey); }
+  else if(action==='edit'){ currentRec._editAppt=currentRec._editAppt||{}; currentRec._editAppt[typeKey]=true; view='detail'; render(); window.scrollTo(0,0); }
+}
 function reportAppointments(){
   var today = new Date().toISOString().slice(0,10);
   var items = [];
