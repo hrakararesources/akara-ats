@@ -345,6 +345,7 @@ var settings = null;          // {company, stages, hospitals, emailTemplates}
 var hrUsersList = [];         // รายชื่อ HR (สำหรับหน้าตั้งค่า)
 var settingsTab = 'company';  // company | stages | hospitals | templates | accounts
 var reportView = null;        // null = หน้าการ์ดรวม | summary | jobsrep | appointments | stats | bulkslip
+var onboardView = null;       // null = รายการพนักงาน | id ของพนักงานที่กำลังดู
 var reportFilter = { status:'', position:'', from:'', to:'' };
 var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
@@ -536,7 +537,7 @@ function mapErr_(res){
 function apiHrLogin(user, pass){
   if(isDemo()){
     var a = DEMO_HR.filter(function(x){return x.user===user && x.pass===pass;})[0];
-    return Promise.resolve(a ? {ok:true, sid:'demo-sid', name:a.name, user:a.user, role:a.role||'hr'} : {ok:false, error:'bad_credentials'});
+    return Promise.resolve(a ? {ok:true, sid:'demo-sid', name:a.name, user:a.user, role:a.role||'hr', canOnboard:(a.role==='admin')||!!a.canOnboard} : {ok:false, error:'bad_credentials'});
   }
   return apiPost({action:'hrLogin', user:user, pass:pass});
 }
@@ -1002,7 +1003,7 @@ function tryLogin(){
   var remember = $('chkRemember') && $('chkRemember').checked;
   apiHrLogin(u.value, p.value).then(function(res){
     if(res.ok){
-      session = { user:res.user, name:res.name, sid:res.sid, role:res.role||'hr' };
+      session = { user:res.user, name:res.name, sid:res.sid, role:res.role||'hr', canOnboard:!!res.canOnboard };
       if(remember) localStorage.setItem('akr_hr_session', JSON.stringify(session));
       hrAuthed = true;
       loadDashboard();
@@ -1031,6 +1032,7 @@ function loadDashboard(){
     if(res[2].ok && res[2].v && res[2].v.settings){
       settings = res[2].v.settings; hrUsersList = res[2].v.hrUsers||[];
       if(res[2].v.myRole && session){ session.role = res[2].v.myRole; }
+      if(res[2].v.myCanOnboard!==undefined && session){ session.canOnboard = res[2].v.myCanOnboard; }
     }
     else if(!res[2].ok) errs.push('• ตั้งค่า: '+errMsg_(res[2].e));
     render();
@@ -1266,13 +1268,16 @@ function viewHome(){
 }
 // ─── HR layout: sidebar ──────────────────────────────────────────────
 function hrShell(content){
-  var menu = [
+  var canOnboard = isDemo() || (session && (session.role==='admin' || session.canOnboard===true));
+  var menuItems = [
     {k:'applicants', icon:'📋', l:'ทะเบียนผู้สมัคร'},
     {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
-    {k:'reports',    icon:'📄', l:'ศูนย์รวมรายงาน'},
-    {k:'settings',   icon:'⚙️', l:'ตั้งค่าระบบ'}
-  ].map(function(m){
-    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;reportView=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
+    {k:'reports',    icon:'📄', l:'ศูนย์รวมรายงาน'}
+  ];
+  if(canOnboard) menuItems.push({k:'onboard', icon:'🎯', l:'เริ่มงาน (Onboarding)'});
+  menuItems.push({k:'settings', icon:'⚙️', l:'ตั้งค่าระบบ'});
+  var menu = menuItems.map(function(m){
+    return '<div class="side-item'+(hrMenu===m.k?' on':'')+'" onclick="hrMenu=\''+m.k+'\';editingJob=null;hrEdits=null;reportView=null;onboardView=null;render()"><span>'+m.icon+'</span> '+m.l+'</div>';
   }).join('');
   return '<div class="hr-layout">'
     + '<aside class="sidebar"><div class="side-user">'
@@ -1290,6 +1295,11 @@ function viewDashboard(){
   if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
   if(hrMenu==='reports') return hrShell(viewReports());
   if(hrMenu==='settings') return hrShell(viewSettings());
+  if(hrMenu==='onboard'){
+    var canOnboard = isDemo() || (session && (session.role==='admin' || session.canOnboard===true));
+    if(!canOnboard){ hrMenu='applicants'; return hrShell(viewApplicants()); }
+    return hrShell(viewOnboardMenu());
+  }
   return hrShell(viewApplicants());
 }
 function lastScreener(r){
@@ -1906,23 +1916,29 @@ function settingsAccounts(){
       + '<div class="alert alert-warn" style="font-size:12px">การจัดการบัญชี HR ใช้ได้เฉพาะเมื่อเชื่อมต่อ backend จริง (ไม่ใช่โหมดทดลอง)</div></div>';
   }
   var list = hrUsersList||[];
-  hrEdits = hrEdits || list.map(function(u){return {user:u.user,name:u.name,pass:'',role:u.role||'hr'};});
+  hrEdits = hrEdits || list.map(function(u){return {user:u.user,name:u.name,pass:'',role:u.role||'hr',canOnboard:!!u.canOnboard};});
   var rows = hrEdits.map(function(u,i){
     var isSelf = session && session.user===u.user;
-    var roleSel = '<select onchange="hrEdits['+i+'].role=this.value" style="border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px">'
+    var isAdmin = u.role==='admin';
+    var roleSel = '<select onchange="hrEdits['+i+'].role=this.value;render()" style="border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px">'
       + '<option value="hr"'+(u.role!=='admin'?' selected':'')+'>เจ้าหน้าที่ HR</option>'
       + '<option value="admin"'+(u.role==='admin'?' selected':'')+'>ผู้ดูแลระบบ (admin)</option></select>';
+    // admin เห็น Onboarding เสมอ; hr ทั่วไปติ๊กให้สิทธิ์ได้
+    var onbChk = isAdmin
+      ? '<span style="font-size:11px;color:var(--success)">✓ (admin)</span>'
+      : '<input type="checkbox" '+(u.canOnboard?'checked':'')+' onchange="hrEdits['+i+'].canOnboard=this.checked" style="width:16px;height:16px;cursor:pointer">';
     return '<tr><td><input value="'+val(u.name)+'" oninput="hrEdits['+i+'].name=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
       + '<td><input value="'+val(u.user)+'" '+(isSelf?'disabled':'')+' oninput="hrEdits['+i+'].user=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:monospace'+(isSelf?';background:#f0f0f0':'')+'"></td>'
       + '<td>'+roleSel+'</td>'
-      + '<td><input type="text" placeholder="'+(u._isNew?'ตั้งรหัส':'เว้นว่าง = ไม่เปลี่ยน')+'" oninput="hrEdits['+i+'].pass=this.value" style="width:120px;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
+      + '<td style="text-align:center">'+onbChk+'</td>'
+      + '<td><input type="text" placeholder="'+(u._isNew?'ตั้งรหัส':'เว้นว่าง = ไม่เปลี่ยน')+'" oninput="hrEdits['+i+'].pass=this.value" style="width:110px;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
       + '<td>'+(isSelf?'<span style="font-size:11px;color:var(--muted)">บัญชีคุณ</span>':'<button class="btn btn-sm" style="color:var(--danger)" onclick="hrEdits.splice('+i+',1);render()">ลบ</button>')+'</td></tr>';
   }).join('');
   return '<div class="card"><div class="card-header"><div class="icon">👥</div><h2>จัดการบัญชีเจ้าหน้าที่ HR</h2><small>เพิ่ม / ลบ / เปลี่ยนรหัสผ่าน / กำหนดสิทธิ์</small></div>'
-    + '<table class="ats-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้ (login)</th><th>สิทธิ์</th><th>รหัสผ่านใหม่</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
-    + '<div class="alert alert-info" style="font-size:12px;margin-top:10px"><strong>สิทธิ์การใช้งาน:</strong> <u>ผู้ดูแลระบบ (admin)</u> จัดการบัญชี HR และตั้งค่าทุกอย่างได้ · <u>เจ้าหน้าที่ HR</u> ใช้งานคัดกรอง/นัดหมาย/รายงาน และแก้ข้อมูลบริษัท/โรงพยาบาล/ขั้นตอน/อีเมลได้ แต่<strong>ไม่เห็นแท็บบัญชี HR</strong></div>'
+    + '<table class="ats-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้ (login)</th><th>สิทธิ์</th><th>เห็น Onboarding<br><span style="font-size:10px;font-weight:400">(เงินเดือน)</span></th><th>รหัสผ่านใหม่</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div class="alert alert-info" style="font-size:12px;margin-top:10px"><strong>สิทธิ์การใช้งาน:</strong> <u>ผู้ดูแลระบบ (admin)</u> จัดการบัญชี HR และเห็นทุกอย่างรวม Onboarding · <u>เจ้าหน้าที่ HR</u> ใช้งานคัดกรอง/นัดหมาย/รายงานได้ · <strong>เห็น Onboarding</strong> = เห็นเมนูเริ่มงานที่มีข้อมูลเงินเดือนและ TigerSoft (ติ๊กเฉพาะคนที่ควรเห็นเงินเดือน)</div>'
     + '<div class="alert alert-warn" style="font-size:12px">ช่องรหัสผ่าน: เว้นว่าง = ใช้รหัสเดิม / กรอก = เปลี่ยนรหัสใหม่ — รหัสจัดเก็บฝั่งเซิร์ฟเวอร์ ไม่แสดงรหัสเดิมเพื่อความปลอดภัย · ต้องมี admin อย่างน้อย 1 คน</div>'
-    + '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-sm" onclick="hrEdits.push({user:\'\',name:\'\',pass:\'\',role:\'hr\',_isNew:true});render()">➕ เพิ่มบัญชี HR</button>'
+    + '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-sm" onclick="hrEdits.push({user:\'\',name:\'\',pass:\'\',role:\'hr\',canOnboard:false,_isNew:true});render()">➕ เพิ่มบัญชี HR</button>'
     + '<button class="btn btn-primary btn-sm" onclick="saveHrAccounts()">💾 บันทึกบัญชี</button></div></div>';
 }
 function saveSettings(){
@@ -1941,7 +1957,7 @@ function saveHrAccounts(){
   if(adminCount<1){ alert('ต้องมีผู้ดูแลระบบ (admin) อย่างน้อย 1 คน\nกรุณากำหนดสิทธิ์ admin ให้อย่างน้อยหนึ่งบัญชีก่อนบันทึก'); return; }
   // ส่งเฉพาะ field ที่จำเป็น: ถ้า pass ว่าง backend จะเก็บรหัสเดิม (ส่ง flag keepPass)
   var payload = hrEdits.map(function(u){
-    var o = { user:u.user, name:u.name, role:(u.role==='admin'?'admin':'hr') };
+    var o = { user:u.user, name:u.name, role:(u.role==='admin'?'admin':'hr'), canOnboard:(u.role==='admin')||!!u.canOnboard };
     if(u.pass) o.pass = u.pass; else o.keepPass = true;
     return o;
   });
@@ -2095,10 +2111,52 @@ function buildOnboardingSection(r){
     + '<div style="display:flex;gap:6px;margin-top:10px"><input id="newChkTask" placeholder="เพิ่มรายการใหม่..." style="flex:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:inherit" onkeydown="if(event.key===\'Enter\')addChecklistItem()">'
     + '<button class="btn btn-sm" onclick="addChecklistItem()">+ เพิ่ม</button></div></div>';
   return '<div class="section-label" style="margin-top:14px">🎯 การเริ่มงาน (Onboarding)</div>'
-    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>'
-    + buildTigerSoftBox(r);
+    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>';
 }
 // กล่องข้อมูลสำหรับส่งออก TigerSoft (ฟิลด์ที่ ATS ไม่มี ให้ HR เติมตอนรับเข้าทำงาน)
+// ── เมนู Onboarding แยก (เฉพาะผู้มีสิทธิ์ — มีข้อมูลเงินเดือน) ──
+function viewOnboardMenu(){
+  // ดูรายบุคคล
+  if(onboardView){
+    var r = records.filter(function(x){return x.id===onboardView;})[0];
+    if(!r){ onboardView=null; return viewOnboardMenu(); }
+    currentRec = r;
+    var d=r.data||{};
+    return '<div class="toolbar"><button class="btn btn-sm" onclick="onboardView=null;render()">← กลับรายชื่อ</button>'
+      + '<h2 style="font-size:16px;color:var(--primary);margin-left:8px">🎯 ข้อมูลเริ่มงาน — '+esc(d.firstName)+' '+esc(d.lastName)+'</h2></div>'
+      + '<div class="card"><dl class="detail-list" style="margin:0">'
+      + '<dt>ตำแหน่ง</dt><dd>'+esc(d.pos1||'-')+'</dd>'
+      + '<dt>แผนก</dt><dd>'+esc(deptOf(d.pos1)||'-')+'</dd>'
+      + '<dt>เลขบัตรประชาชน</dt><dd>'+esc(d.idCard||'-')+'</dd>'
+      + '<dt>วันเริ่มงาน</dt><dd>'+(((r.appts||{}).start||{}).date?dateTH(r.appts.start.date):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</dd>'
+      + '</dl></div>'
+      + buildTigerSoftBox(r);
+  }
+  // รายชื่อพนักงานเริ่มงาน
+  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  starters.sort(function(a,b){
+    var da=((a.appts||{}).start||{}).date||'9999'; var db=((b.appts||{}).start||{}).date||'9999';
+    return da<db?-1:1;
+  });
+  var tigerDone=function(r){ var t=(r.onboard||{}).tiger||{}; return t.company&&t.empid&&t.sex&&t.marital&&t.salarytype; };
+  var rows = starters.map(function(r,i){
+    var d=r.data||{}; var done=tigerDone(r);
+    var startDate=((r.appts||{}).start||{}).date;
+    return '<tr style="cursor:pointer" onclick="onboardView=\''+r.id+'\';render()">'
+      + '<td>'+(i+1)+'</td><td>'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+      + '<td>'+esc(d.pos1||'-')+'</td><td>'+esc(deptOf(d.pos1)||'-')+'</td>'
+      + '<td style="text-align:center">'+(startDate?dateTH(startDate):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</td>'
+      + '<td style="text-align:center">'+(done?'<span style="color:var(--success)">✓ ครบ</span>':'<span style="color:var(--warn)">รอกรอก</span>')+'</td>'
+      + '<td style="text-align:center"><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();onboardView=\''+r.id+'\';render()">กรอกข้อมูล</button></td></tr>';
+  }).join('');
+  var table = starters.length
+    ? '<table class="ats-table"><thead><tr><th>#</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>วันเริ่มงาน</th><th>ข้อมูล TigerSoft</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    : '<div class="empty-state">ยังไม่มีพนักงานที่ผ่านการคัดเลือก</div>';
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">🎯 การเริ่มงาน (Onboarding)</h2>'
+    + '<div style="margin-left:auto"><button class="btn btn-sm" style="background:#b06d10;color:#fff" onclick="exportTigerSoft()">🐯 สร้างไฟล์ TigerSoft</button></div></div>'
+    + '<div class="alert alert-info" style="font-size:13px;margin-bottom:12px">🔒 เมนูนี้มีข้อมูลเงินเดือนและข้อมูลสำหรับนำเข้า TigerSoft — แสดงเฉพาะเจ้าหน้าที่ที่ได้รับสิทธิ์ · คลิกที่รายชื่อเพื่อกรอกข้อมูล</div>'
+    + table;
+}
 function buildTigerSoftBox(r){
   var ts = (r.onboard||{}).tiger || {};
   var d = r.data||{};
