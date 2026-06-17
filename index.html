@@ -176,6 +176,15 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
 .otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
 /* Reports Center */
+/* Training confirm page (public) */
+.train-wrap{max-width:480px;margin:30px auto;padding:0 16px}
+.train-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:26px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+.train-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px}
+.train-info-box{background:#f4f8fd;border:1px solid #cfe0f5;border-radius:8px;padding:14px}
+.train-info-box>div{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}
+.train-info-box span{color:var(--muted)}
+.train-done{text-align:center;padding:20px 0}
+.train-error{text-align:center;padding:30px 10px;color:var(--danger);font-size:16px}
 /* Appointment menu */
 .seg-toggle{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .seg-toggle button{border:none;background:#fff;padding:6px 14px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--muted)}
@@ -366,6 +375,7 @@ var onboardView = null;       // null = รายการพนักงาน 
 var apptView = null;          // มุมมองนัดหมาย: 'list' (รายการ) | 'calendar' (ปฏิทิน)
 var apptFilter = { type:'', when:'upcoming' };  // ตัวกรองนัดหมาย
 var apptCalMonth = null;      // เดือนที่แสดงในปฏิทิน (YYYY-MM)
+var trainCtx = null;          // บริบทหน้ายืนยันการอบรม (token/emp/module)
 var reportFilter = { status:'', position:'', from:'', to:'' };
 var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
@@ -1963,6 +1973,7 @@ function viewSettings(){
     {k:'company', l:'🏢 ข้อมูลบริษัท'},
     {k:'hospitals', l:'🏥 โรงพยาบาล'},
     {k:'stages', l:'📋 ขั้นตอนคัดเลือก'},
+    {k:'training', l:'📚 หลักสูตรอบรม'},
     {k:'templates', l:'✉️ ข้อความอีเมล'}
   ];
   if(isAdmin) tabs.push({k:'accounts', l:'👥 บัญชี HR'});
@@ -1975,6 +1986,7 @@ function viewSettings(){
   if(settingsTab==='company') body=settingsCompany();
   else if(settingsTab==='hospitals') body=settingsHospitals();
   else if(settingsTab==='stages') body=settingsStages();
+  else if(settingsTab==='training') body=settingsTraining();
   else if(settingsTab==='templates') body=settingsTemplates();
   else if(settingsTab==='accounts') body = isAdmin ? settingsAccounts() : '<div class="empty-state">ไม่มีสิทธิ์เข้าถึง</div>';
   return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">⚙️ ตั้งค่าระบบ</h2>'
@@ -1994,8 +2006,24 @@ function settingsCompany(){
     + '</div></div>'
     + '<div style="margin-top:14px"><button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button></div></div>';
 }
-function settingsHospitals(){
-  var list = settings.hospitals||[];
+function settingsTraining(){
+  if(!settings.trainModules) settings.trainModules = [
+    {key:'iso',name:'ISO',trainer:'',email:''},{key:'env',name:'Environment',trainer:'',email:''},
+    {key:'it',name:'IT',trainer:'',email:''},{key:'safety',name:'Safety',trainer:'',email:''},{key:'hr',name:'HR',trainer:'',email:''}
+  ];
+  var rows = settings.trainModules.map(function(m,i){
+    return '<tr><td><input value="'+val(m.name)+'" oninput="settings.trainModules['+i+'].name=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 8px"></td>'
+      + '<td><input value="'+val(m.trainer)+'" oninput="settings.trainModules['+i+'].trainer=this.value" placeholder="ชื่อผู้อบรม" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 8px"></td>'
+      + '<td><input value="'+val(m.email)+'" oninput="settings.trainModules['+i+'].email=this.value" placeholder="อีเมลผู้อบรม" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 8px"></td>'
+      + '<td><button class="btn btn-sm" style="color:var(--danger)" onclick="settings.trainModules.splice('+i+',1);render()">ลบ</button></td></tr>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><div class="icon">📚</div><h2>หลักสูตรอบรมพนักงานใหม่</h2><small>กำหนดแผนก/หัวข้อ และอีเมลผู้อบรม</small></div>'
+    + '<table class="ats-table"><thead><tr><th>แผนก/หัวข้อ</th><th>ผู้อบรม</th><th>อีเมลผู้อบรม</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div class="alert alert-info" style="font-size:12px;margin-top:10px">เมื่อพนักงานใหม่ผ่านการคัดเลือก HR กดปุ่ม "ส่งคำขออบรม" ในเมนูเริ่มงาน ระบบจะอีเมลลิงก์ยืนยันให้ผู้อบรมแต่ละแผนกตามอีเมลที่ระบุไว้นี้ — ผู้อบรมกดลิงก์เพื่อยืนยันผลได้โดยไม่ต้องเข้าสู่ระบบ</div>'
+    + '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-sm" onclick="settings.trainModules.push({key:\'m\'+Date.now(),name:\'\',trainer:\'\',email:\'\'});render()">➕ เพิ่มหัวข้ออบรม</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 บันทึก</button></div></div>';
+}
+function settingsHospitals(){  var list = settings.hospitals||[];
   var rows = list.map(function(h,i){
     return '<tr><td><input value="'+val(h.name)+'" oninput="settings.hospitals['+i+'].name=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
       + '<td><input value="'+val(h.address)+'" oninput="settings.hospitals['+i+'].address=this.value" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px"></td>'
@@ -2260,6 +2288,7 @@ function viewOnboardMenu(){
       + '<dt>เลขบัตรประชาชน</dt><dd>'+esc(d.idCard||'-')+'</dd>'
       + '<dt>วันเริ่มงาน</dt><dd>'+(((r.appts||{}).start||{}).date?dateTH(r.appts.start.date):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</dd>'
       + '</dl></div>'
+      + buildTrainingSection(r)
       + buildTigerSoftBox(r);
   }
   // รายชื่อพนักงานเริ่มงาน
@@ -2286,6 +2315,48 @@ function viewOnboardMenu(){
     + '<div style="margin-left:auto"><button class="btn btn-sm" style="background:#b06d10;color:#fff" onclick="exportTigerSoft()">🐯 สร้างไฟล์ TigerSoft</button></div></div>'
     + '<div class="alert alert-info" style="font-size:13px;margin-bottom:12px">🔒 เมนูนี้มีข้อมูลเงินเดือนและข้อมูลสำหรับนำเข้า TigerSoft — แสดงเฉพาะเจ้าหน้าที่ที่ได้รับสิทธิ์ · คลิกที่รายชื่อเพื่อกรอกข้อมูล</div>'
     + table;
+}
+// ── ส่วนติดตามการอบรม 5 แผนก (ส่งให้ผู้อบรม + ดูสถานะ) ──
+function buildTrainingSection(r){
+  var modules = (settings&&settings.trainModules)||[];
+  var training = (r.onboard||{}).training||{};
+  if(!modules.length){
+    return '<div class="section-label" style="margin-top:14px">📚 การอบรมพนักงานใหม่</div>'
+      + '<div class="alert alert-warn" style="font-size:13px">ยังไม่ได้ตั้งค่าหลักสูตรอบรม — ไปที่ ตั้งค่าระบบ → หลักสูตรอบรม เพื่อกำหนดแผนกและอีเมลผู้อบรม</div>';
+  }
+  var passed = modules.filter(function(m){ return (training[m.key]||{}).status==='passed'; }).length;
+  var rows = modules.map(function(m){
+    var t=training[m.key]||{};
+    var st = t.status==='passed'
+      ? '<span class="status-pill st-ผ่าน">✓ ผ่านแล้ว</span>'
+      : (t.status==='pending' ? '<span class="status-pill st-นัดสัมภาษณ์">📨 ส่งแล้ว รออบรม</span>' : '<span class="status-pill st-ใหม่">ยังไม่ส่ง</span>');
+    var detail = t.status==='passed'
+      ? '<span style="font-size:11px;color:var(--muted)">'+(t.trainDate?dateTH(t.trainDate):'')+(t.confirmedBy?' · '+esc(t.confirmedBy):'')+'</span>'
+      : (m.email ? '<span style="font-size:11px;color:var(--muted)">ผู้อบรม: '+esc(m.email)+'</span>' : '<span style="font-size:11px;color:var(--danger)">ยังไม่ระบุอีเมลผู้อบรม</span>');
+    return '<tr><td><b>'+esc(m.name)+'</b></td><td>'+st+'</td><td>'+detail+'</td></tr>';
+  }).join('');
+  return '<div class="section-label" style="margin-top:14px">📚 การอบรมพนักงานใหม่ <span style="font-size:12px;font-weight:400;color:'+(passed===modules.length?'var(--success)':'var(--muted)')+'">('+passed+'/'+modules.length+' แผนก'+(passed===modules.length?' ✓ ครบ':'')+')</span></div>'
+    + '<div class="card"><table class="ats-table"><thead><tr><th>แผนก/หัวข้อ</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    + '<button class="btn btn-sm btn-primary" onclick="sendTrainingReq(\''+r.id+'\')">📨 ส่งคำขออบรมให้ผู้อบรมทุกแผนก</button>'
+    + '<span style="font-size:11px;color:var(--muted);align-self:center">ระบบจะอีเมลลิงก์ยืนยันให้ผู้อบรมแต่ละแผนก เมื่ออบรมเสร็จผู้อบรมกดยืนยันผลกลับมา</span>'
+    + '</div></div>';
+}
+function sendTrainingReq(id){
+  var modules = (settings&&settings.trainModules)||[];
+  var noEmail = modules.filter(function(m){ return !m.email; });
+  if(noEmail.length===modules.length){ alert('ยังไม่ได้ตั้งค่าอีเมลผู้อบรมเลย\nไปที่ ตั้งค่าระบบ → หลักสูตรอบรม เพื่อระบุอีเมลผู้อบรมแต่ละแผนกก่อน'); return; }
+  var warn = noEmail.length ? '\n\n⚠ แผนกที่ยังไม่มีอีเมลผู้อบรม ('+noEmail.map(function(m){return m.name;}).join(', ')+') จะถูกข้าม' : '';
+  if(!confirm('ส่งคำขออบรมไปยังผู้อบรมทุกแผนก?'+warn+'\n\nระบบจะอีเมลลิงก์ยืนยันให้ผู้อบรมแต่ละแผนก')) return;
+  apiPost({action:'sendTraining', id:id}).then(function(res){
+    if(!res.ok){ alert('ส่งไม่สำเร็จ: '+(res.error||'')); return; }
+    var r=records.filter(function(x){return x.id===id;})[0];
+    if(r && res.onboard){ r.onboard=res.onboard; if(currentRec&&currentRec.id===id)currentRec.onboard=res.onboard; }
+    var msg='ส่งคำขออบรมแล้ว';
+    if(res.sent&&res.sent.length) msg+='\n✓ ส่งสำเร็จ: '+res.sent.join(', ');
+    if(res.noEmail&&res.noEmail.length) msg+='\n⚠ ข้าม: '+res.noEmail.join(', ');
+    alert(msg); render();
+  }).catch(function(err){ alert('เชื่อมต่อไม่สำเร็จ: '+err.message); });
 }
 function buildTigerSoftBox(r){
   var ts = (r.onboard||{}).tiger || {};
@@ -2816,10 +2887,80 @@ function render(){
   c.innerHTML = backHome + stepper + body + nav;
 }
 
+// ─── หน้ายืนยันการอบรม (สำหรับผู้อบรม — เข้าผ่านลิงก์ ไม่ต้อง login) ───
+function renderTrainPage(){
+  var c = $('appView');
+  var tag = $('modeTag'); if(tag) tag.innerHTML='';
+  var hl = $('hrLink'); if(hl) hl.textContent='';
+  document.querySelector('.container').classList.remove('wide');
+  c.innerHTML = '<div class="train-wrap"><div class="train-card"><div class="empty-state">⏳ กำลังโหลดข้อมูล...</div></div></div>';
+  apiPost({action:'trainInfo', ttoken:trainCtx.token, emp:trainCtx.emp, m:trainCtx.m})
+    .then(function(res){
+      if(!res.ok){ c.innerHTML = trainShell_('<div class="train-error">❌ '+esc(res.error||'ลิงก์ไม่ถูกต้อง')+'</div>'); return; }
+      trainCtx.info = res;
+      c.innerHTML = trainShell_(trainBody_(res));
+      var dt=$('trainDate'); if(dt && !dt.value) dt.value=new Date().toISOString().slice(0,10);
+    })
+    .catch(function(err){ c.innerHTML = trainShell_('<div class="train-error">❌ เชื่อมต่อไม่สำเร็จ: '+esc(err.message)+'</div>'); });
+}
+function trainShell_(inner){
+  return '<div class="train-wrap"><div class="train-card">'
+    + '<div class="train-head"><img src="'+LOGO_SRC+'" style="height:34px"><div style="font-size:12px;color:var(--muted)">ระบบยืนยันการอบรมพนักงานใหม่</div></div>'
+    + inner + '</div></div>';
+}
+function trainBody_(info){
+  if(info.status==='passed'){
+    return '<div class="train-done"><div style="font-size:42px">✅</div>'
+      + '<h2 style="color:var(--success);margin:8px 0">ยืนยันการอบรมแล้ว</h2>'
+      + '<p>หัวข้อ <b>'+esc(info.module)+'</b> สำหรับ <b>'+esc(info.empName)+'</b></p>'
+      + (info.trainDate?'<p style="color:var(--muted)">อบรมเมื่อ '+dateTH(info.trainDate)+(info.trainTime?' '+esc(info.trainTime)+' น.':'')+'</p>':'')
+      + (info.confirmedBy?'<p style="color:var(--muted);font-size:13px">ยืนยันโดย '+esc(info.confirmedBy)+'</p>':'')
+      + '<p style="font-size:13px;color:var(--muted);margin-top:14px">ขอบคุณครับ — ท่านสามารถปิดหน้านี้ได้</p></div>';
+  }
+  return '<h2 style="color:var(--primary);font-size:19px;margin-bottom:4px">ยืนยันการอบรม — '+esc(info.module)+'</h2>'
+    + '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">'+esc(info.company)+'</p>'
+    + '<div class="train-info-box"><div><span>พนักงาน</span><b>'+esc(info.empName)+'</b></div>'
+    + '<div><span>ตำแหน่ง</span><b>'+esc(info.position||'-')+'</b></div>'
+    + '<div><span>หัวข้ออบรม</span><b>'+esc(info.module)+'</b></div></div>'
+    + '<div class="form-grid g2" style="gap:12px;margin-top:16px">'
+    + '<div class="form-group"><label><span class="th">วันที่อบรม</span></label><input type="date" id="trainDate"></div>'
+    + '<div class="form-group"><label><span class="th">เวลา</span></label><input type="time" id="trainTime"></div></div>'
+    + '<div class="form-group" style="margin-top:10px"><label><span class="th">ชื่อผู้อบรม / ผู้ยืนยัน</span></label><input id="trainBy" placeholder="ชื่อผู้ให้การอบรม"></div>'
+    + '<div class="form-group" style="margin-top:10px"><label><span class="th">หมายเหตุ (ถ้ามี)</span></label><input id="trainNote" placeholder="เช่น ผลการประเมิน"></div>'
+    + '<button class="btn btn-success" style="width:100%;margin-top:18px;padding:12px;font-size:15px" onclick="submitTrainConfirm()">✓ ยืนยันว่าพนักงานผ่านการอบรม '+esc(info.module)+'</button>'
+    + '<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">เมื่อยืนยันแล้ว ระบบจะแจ้งผลกลับไปยังฝ่ายบุคคลทันที</p>';
+}
+function submitTrainConfirm(){
+  var btn=event.target; btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  apiPost({action:'trainConfirm', ttoken:trainCtx.token, emp:trainCtx.emp, m:trainCtx.m,
+    trainDate:($('trainDate')||{}).value||'', trainTime:($('trainTime')||{}).value||'',
+    confirmedBy:($('trainBy')||{}).value||'', note:($('trainNote')||{}).value||''})
+    .then(function(res){
+      if(!res.ok){ alert('บันทึกไม่สำเร็จ: '+(res.error||'')); btn.disabled=false; btn.textContent='✓ ยืนยัน'; return; }
+      trainCtx.info.status='passed';
+      trainCtx.info.trainDate=($('trainDate')||{}).value||'';
+      trainCtx.info.trainTime=($('trainTime')||{}).value||'';
+      trainCtx.info.confirmedBy=($('trainBy')||{}).value||'';
+      $('appView').innerHTML = trainShell_(trainBody_(trainCtx.info));
+    })
+    .catch(function(err){ alert('เชื่อมต่อไม่สำเร็จ: '+err.message); btn.disabled=false; btn.textContent='✓ ยืนยัน'; });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────
 $('logoImg').src = LOGO_SRC;
 window.addEventListener('afterprint', function(){ document.body.classList.remove('printing'); });
-loadHome();
+// ตรวจลิงก์ยืนยันการอบรม (?train=TOKEN&emp=...&m=...)
+(function(){
+  var qs = new URLSearchParams(location.search);
+  var tk = qs.get('train');
+  if(tk){
+    view='train';
+    trainCtx = { token:tk, emp:qs.get('emp'), m:qs.get('m') };
+    renderTrainPage();
+    return;
+  }
+  loadHome();
+})();
 
 </script>
 </body>
