@@ -47,6 +47,9 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .g3{grid-template-columns:2fr 2fr 1fr}
 .g4{grid-template-columns:2fr 2fr 1fr 1fr}
 .g4eq{display:grid;grid-template-columns:1fr 1fr 1fr 1fr}
+.chk-inline{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.chk-inline input{width:16px;height:16px;cursor:pointer}
+.addr-block{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px}
 .form-group{display:flex;flex-direction:column;gap:4px;min-width:0}
 .form-group label{font-size:12px;color:var(--muted);font-weight:500}
 .form-group label .th{color:var(--text)}
@@ -408,10 +411,16 @@ var F;
 function blankF(){
   var edu = {};
   EDU_LEVELS.forEach(function(lv){ edu[lv.k] = {ins:'',field:'',year:'',gpa:''}; });
+  var blankAddr = function(){ return {add:'',moo:'',soi:'',street:'',district:'',amphur:'',province:'',postal:'',country:'ไทย'}; };
   return {
-    pos1:'',pos2:'',pos3:'',salary:'',
-    firstName:'',lastName:'',dob:'',
-    houseAddr:'',presentAddr:'',
+    pos1:'',pos2:'',pos3:'',salary:'',     // salary: ไม่แสดงให้ผู้สมัคร — HR เติมใน TigerSoft
+    prefix:'',firstName:'',lastName:'',firstNameEn:'',lastNameEn:'',
+    sex:'',marital:'',nationality:'ไทย',religion:'',
+    dob:'',
+    reAddr: blankAddr(),    // ที่อยู่ตามทะเบียนบ้าน (แยกช่องตาม TigerSoft)
+    prAddr: blankAddr(),    // ที่อยู่ปัจจุบัน
+    prSameAsRe: true,       // ที่อยู่ปัจจุบันเหมือนทะเบียนบ้าน
+    houseAddr:'',presentAddr:'',   // เก็บไว้เผื่อ backward-compat (สร้างจาก reAddr/prAddr)
     phone:'',email:'',idCard:'',idExpiry:'',lineId:'',
     military:'',
     edu: edu,
@@ -425,6 +434,9 @@ function blankF(){
     agreed:false
   };
 }
+var PREFIX_OPTS = ['นาย','นาง','นางสาว'];
+var SEX_OPTS = ['ชาย','หญิง'];
+var MARITAL_OPTS = ['โสด','สมรส','หม้าย','หย่า'];
 var EDU_LEVELS = [
   {k:'primary',l:'ประถมศึกษา',e:'Primary'},
   {k:'secondary',l:'มัธยมศึกษา',e:'Secondary'},
@@ -696,6 +708,27 @@ function fldTA(lth,len,id,v,ph){
   return '<div class="form-group"><label><span class="th">'+lth+'</span> <span class="en">'+len+'</span></label>'
     + '<textarea id="'+id+'" placeholder="'+esc(ph||'')+'" oninput="F[\''+id+'\']=this.value">'+val(v)+'</textarea></div>';
 }
+// dropdown ผูกกับ F[id]
+function fldSel(lth,len,id,opts,cur){
+  return '<div class="form-group"><label for="'+id+'"><span class="th">'+lth+'</span> <span class="en">'+len+'</span></label>'
+    + '<select id="'+id+'" onchange="F[\''+id+'\']=this.value;clearErr(\''+id+'\')"><option value="">— เลือก —</option>'
+    + opts.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select>'
+    + '<span class="err-msg" id="err_'+id+'"></span></div>';
+}
+// บล็อกที่อยู่แบบแยกช่อง ผูกกับ F[objKey] (เช่น reAddr/prAddr)
+function fldAddrBlock(objKey, a){
+  a = a||{};
+  var f=function(k,label,ph,span){
+    return '<div class="form-group"'+(span?' style="grid-column:span '+span+'"':'')+'><label><span class="th">'+label+'</span></label>'
+      + '<input id="ad_'+objKey+'_'+k+'" value="'+val(a[k])+'" placeholder="'+esc(ph||'')+'" oninput="F.'+objKey+'.'+k+'=this.value"></div>';
+  };
+  return '<div class="addr-block">'
+    + '<div class="form-grid g4eq" style="gap:8px">'
+    + f('add','บ้านเลขที่','99/9') + f('moo','หมู่','-') + f('soi','ซอย','-') + f('street','ถนน','-')
+    + '</div><div class="form-grid g4eq" style="gap:8px;margin-top:6px">'
+    + f('district','ตำบล/แขวง','') + f('amphur','อำเภอ/เขต','') + f('province','จังหวัด','') + f('postal','รหัสไปรษณีย์','')
+    + '</div></div>';
+}
 
 function buildStep0(){
   return '<div class="card"><div class="card-header"><div class="icon">💼</div><h2>ตำแหน่งที่ต้องการสมัคร <small>Position Applied 1-3</small></h2></div>'
@@ -713,10 +746,20 @@ function buildStep1(){
     + '<p style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px">รูปถ่าย / Photo</p>'
     + '<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(this)">'
     + (photoDataURL?'<button class="btn btn-sm" style="width:100%;margin-top:4px;color:var(--danger)" onclick="photoDataURL=null;render()">✕ ลบรูป</button>':'')
-    + '</div><div style="flex:1"><div class="form-grid g2">'+fld('ชื่อ *','First Name','firstName','text',F.firstName,'')+fld('นามสกุล *','Last Name','lastName','text',F.lastName,'')+'</div>'
-    + '<div style="margin-top:12px">'+fld('วัน เดือน ปี เกิด','Date of Birth','dob','date',F.dob,'')+'</div></div></div>'
-    + '<div class="form-grid" style="margin-top:14px">'+fldTA('ที่อยู่ตามทะเบียนบ้าน','House Registration Address','houseAddr',F.houseAddr,'บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด รหัสไปรษณีย์')
-    + fldTA('ที่อยู่ปัจจุบัน (กรณีต่างจากทะเบียนบ้าน)','Present Address if different','presentAddr',F.presentAddr,'เว้นว่างหากเหมือนที่อยู่ตามทะเบียนบ้าน')+'</div>'
+    + '</div><div style="flex:1">'
+    + '<div class="form-grid g3">'+fldSel('คำนำหน้า *','Title','prefix',PREFIX_OPTS,F.prefix)+fld('ชื่อ *','First Name','firstName','text',F.firstName,'')+fld('นามสกุล *','Last Name','lastName','text',F.lastName,'')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:10px">'+fld('ชื่อ (อังกฤษ)','First Name (EN)','firstNameEn','text',F.firstNameEn,'')+fld('นามสกุล (อังกฤษ)','Last Name (EN)','lastNameEn','text',F.lastNameEn,'')+'</div>'
+    + '</div></div>'
+    + '<div class="form-grid g4eq" style="margin-top:12px;gap:10px">'
+    + fldSel('เพศ *','Sex','sex',SEX_OPTS,F.sex)
+    + fldSel('สถานะ *','Marital','marital',MARITAL_OPTS,F.marital)
+    + fld('สัญชาติ','Nationality','nationality','text',F.nationality,'')
+    + fld('ศาสนา','Religion','religion','text',F.religion,'')+'</div>'
+    + '<div style="margin-top:12px">'+fld('วัน เดือน ปี เกิด','Date of Birth','dob','date',F.dob,'')+'</div>'
+    + '<div class="section-label">📍 ที่อยู่ตามทะเบียนบ้าน House Registration Address</div>'
+    + fldAddrBlock('reAddr', F.reAddr)
+    + '<label class="chk-inline" style="margin-top:10px"><input type="checkbox" id="prSame" '+(F.prSameAsRe?'checked':'')+' onchange="F.prSameAsRe=this.checked;render()"> ที่อยู่ปัจจุบันเหมือนทะเบียนบ้าน</label>'
+    + (F.prSameAsRe ? '' : '<div class="section-label">📍 ที่อยู่ปัจจุบัน Present Address</div>'+fldAddrBlock('prAddr', F.prAddr))
     + '<div class="form-grid g2" style="margin-top:12px">'+fld('เบอร์โทรศัพท์','Telephone','phone','tel',F.phone,'0xx-xxx-xxxx')+fld('อีเมล (ถ้ามี)','Email — optional','email','email',F.email,'name@example.com')+'</div>'
     + '<p style="font-size:11px;color:var(--muted);margin-top:-4px">* กรุณากรอกเบอร์โทรศัพท์ หรืออีเมล อย่างน้อยหนึ่งช่องทาง เพื่อให้เจ้าหน้าที่ติดต่อกลับได้ — หากกรอกอีเมล ระบบจะส่งรหัส OTP ไปยืนยัน</p>'
     + '<div class="form-grid g3" style="margin-top:12px">'+fld('เลขบัตรประชาชน *','ID Card Number','idCard','text',F.idCard,'x-xxxx-xxxxx-xx-x')+fld('วันหมดอายุบัตร','Expired Date','idExpiry','date',F.idExpiry,'')+fld('ไลน์ไอดี','Line ID','lineId','text',F.lineId,'')+'</div>'
@@ -963,8 +1006,11 @@ function validate(){
     if(!F.salary){showErr('salary','กรุณาระบุเงินเดือนที่คาดหวัง');ok=false;}
   }
   if(cur===1){
+    if(!F.prefix){showErr('prefix','กรุณาเลือกคำนำหน้า');ok=false;}
     if(!F.firstName){showErr('firstName','กรุณากรอกชื่อ');ok=false;}
     if(!F.lastName){showErr('lastName','กรุณากรอกนามสกุล');ok=false;}
+    if(!F.sex){showErr('sex','กรุณาเลือกเพศ');ok=false;}
+    if(!F.marital){showErr('marital','กรุณาเลือกสถานะ');ok=false;}
     // ต้องมีช่องทางติดต่ออย่างน้อยหนึ่ง: เบอร์โทร หรือ อีเมล
     if(!F.phone && !F.email){
       showErr('phone','กรุณากรอกเบอร์โทร หรืออีเมล อย่างน้อยหนึ่งอย่าง');
@@ -1013,8 +1059,26 @@ function nextStep(){
 }
 function prevStep(){ if(cur>0){ cur--; render(); window.scrollTo(0,0); } }
 function goStep(i){ if(i<cur){ cur=i; render(); window.scrollTo(0,0); } }
+function addrToText_(a){
+  if(!a) return '';
+  var parts=[];
+  if(a.add) parts.push(a.add);
+  if(a.moo) parts.push('หมู่ '+a.moo);
+  if(a.soi) parts.push('ซ.'+a.soi);
+  if(a.street) parts.push('ถ.'+a.street);
+  if(a.district) parts.push('ต.'+a.district);
+  if(a.amphur) parts.push('อ.'+a.amphur);
+  if(a.province) parts.push('จ.'+a.province);
+  if(a.postal) parts.push(a.postal);
+  return parts.join(' ');
+}
 function submitForm(){
   if(!validate()) return;
+  // ถ้าที่อยู่ปัจจุบันเหมือนทะเบียนบ้าน ใช้ค่าเดียวกัน
+  if(F.prSameAsRe){ F.prAddr = JSON.parse(JSON.stringify(F.reAddr)); }
+  // สร้างข้อความที่อยู่ (สำหรับแสดงผล/พิมพ์ฟอร์ม + backward-compat)
+  F.houseAddr = addrToText_(F.reAddr);
+  F.presentAddr = F.prSameAsRe ? '' : addrToText_(F.prAddr);
   var bn=$('btnNext'); if(bn){bn.disabled=true;bn.textContent='กำลังส่ง...';}
   var record = {
     id:'', ts: new Date().toISOString(), status:'ใหม่', note:'',
@@ -1170,21 +1234,86 @@ function saveAppt(typeKey){
   }
   currentRec.appts[typeKey] = apptData;
   if(currentRec._editAppt) currentRec._editAppt[typeKey] = false;
-  var entry = logEntry(t.l+' → '+dateTH(dEl.value)+(tmEl&&tmEl.value?' '+tmEl.value+' น.':''));
-  apiUpdate(currentRec.id, {appts:currentRec.appts, logEntry:entry}).then(function(){
+  // เมื่อบันทึกนัด "วันเริ่มงาน" → สร้างรหัสพนักงานอัตโนมัติ (ถ้ายังไม่มี)
+  var genEmpNote = '';
+  if(typeKey==='start'){
+    currentRec.onboard = currentRec.onboard || {};
+    currentRec.onboard.tiger = currentRec.onboard.tiger || {};
+    if(!currentRec.onboard.tiger.empid){
+      var suggested = suggestEmpId_(dEl.value);
+      if(suggested){
+        currentRec.onboard.tiger.empid = suggested.id;
+        currentRec.onboard.tiger.company = currentRec.onboard.tiger.company||'AKR';
+        if(!currentRec.onboard.tiger.cardid) currentRec.onboard.tiger.cardid = suggested.id;
+        bumpEmpSeq_(suggested.seq);   // อัปเดตเลขลำดับล่าสุด
+        genEmpNote = ' · สร้างรหัสพนักงาน '+suggested.id;
+      }
+    }
+  }
+  var entry = logEntry(t.l+' → '+dateTH(dEl.value)+(tmEl&&tmEl.value?' '+tmEl.value+' น.':'')+genEmpNote);
+  var updatePayload = {appts:currentRec.appts, logEntry:entry};
+  if(typeKey==='start' && currentRec.onboard) updatePayload.onboard = currentRec.onboard;
+  apiUpdate(currentRec.id, updatePayload).then(function(){
     currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
-    records.forEach(function(r){ if(r.id===currentRec.id){ r.appts=currentRec.appts; r.log=currentRec.log; } });
-    toast('บันทึก'+t.l+'แล้ว');
+    records.forEach(function(r){ if(r.id===currentRec.id){ r.appts=currentRec.appts; r.log=currentRec.log; if(currentRec.onboard) r.onboard=currentRec.onboard; } });
+    toast('บันทึก'+t.l+'แล้ว'+(genEmpNote?'\nรหัสพนักงาน: '+currentRec.onboard.tiger.empid:''));
     // เสนอส่งอีเมลแจ้งผู้สมัครทันที (ถ้ามีอีเมล)
     var d = currentRec.data||{};
     if(d.email){
-      if(confirm('บันทึกนัดหมายแล้ว\n\nต้องการส่งอีเมลแจ้ง '+t.l+' ถึงผู้สมัคร ('+d.email+') เลยหรือไม่?')){
+      if(confirm('บันทึกนัดหมายแล้ว'+(genEmpNote?'\nรหัสพนักงาน: '+currentRec.onboard.tiger.empid:'')+'\n\nต้องการส่งอีเมลแจ้ง '+t.l+' ถึงผู้สมัคร ('+d.email+') เลยหรือไม่?')){
         sendApptEmail(typeKey);
         return;
       }
     }
     render();
   }).catch(function(err){ alert('บันทึกนัดหมายไม่สำเร็จ: '+err.message); });
+}
+// สร้างรหัสพนักงานถัดไป จากวันเริ่มงาน (ปี ค.ศ. 2 หลัก + เดือน + ลำดับ 4 หลัก)
+function suggestEmpId_(startDate){
+  if(!startDate) return null;
+  var d = new Date(startDate);
+  if(isNaN(d)) return null;
+  var prefix = (settings && settings.company && settings.company.empPrefix) || 'AKR';
+  var yy = String(d.getFullYear()).slice(-2);          // ค.ศ. 2 หลัก
+  var mm = ('0'+(d.getMonth()+1)).slice(-2);           // เดือน 2 หลัก
+  var lastSeq = parseInt((settings && settings.company && settings.company.lastEmpSeq) || 1363, 10);
+  var nextSeq = lastSeq + 1;
+  var seqStr = ('0000'+nextSeq).slice(-4);
+  return { id: prefix + yy + mm + seqStr, seq: nextSeq };
+}
+// อัปเดตเลขลำดับล่าสุดใน settings (บันทึกขึ้น server)
+function bumpEmpSeq_(seq){
+  settings = settings || {};
+  settings.company = settings.company || {};
+  settings.company.lastEmpSeq = seq;
+  // บันทึก settings แบบเงียบ (ไม่ต้องรอ)
+  if(typeof apiSaveSettings==='function'){ apiSaveSettings(settings).catch(function(){}); }
+}
+// ปุ่มสร้างรหัสด้วยตนเอง (ในกล่อง TigerSoft)
+function genEmpIdFor(id){
+  var r = records.filter(function(x){return x.id===id;})[0];
+  if(!r){ return; }
+  var startDate = ((r.appts||{}).start||{}).date;
+  if(!startDate){ alert('ต้องบันทึกนัด "วันเริ่มงาน" ก่อน จึงจะสร้างรหัสได้'); return; }
+  var suggested = suggestEmpId_(startDate);
+  if(!suggested){ alert('ไม่สามารถสร้างรหัสได้ — ตรวจวันเริ่มงาน'); return; }
+  var input = prompt('รหัสพนักงานที่ระบบเสนอ (แก้ไขได้):\n\nเลขลำดับล่าสุดในระบบ: '+((settings.company&&settings.company.lastEmpSeq)||1363)+'\nหากไม่ตรงกับ TigerSoft จริง ให้แก้เลขท้าย 4 หลัก', suggested.id);
+  if(input===null) return;
+  input = input.trim();
+  if(!input){ alert('ยังไม่ได้กรอกรหัส'); return; }
+  r.onboard = r.onboard || {}; r.onboard.tiger = r.onboard.tiger || {};
+  r.onboard.tiger.empid = input;
+  r.onboard.tiger.company = r.onboard.tiger.company||'AKR';
+  if(!r.onboard.tiger.cardid) r.onboard.tiger.cardid = input;
+  // ถ้า HR ใช้รหัสที่ระบบเสนอ → อัปเดตลำดับ; ถ้าแก้เอง → ดึงเลขท้าย 4 หลักมาอัปเดต
+  var tail = input.match(/(\d{4})$/);
+  if(tail){ bumpEmpSeq_(parseInt(tail[1],10)); }
+  if(currentRec&&currentRec.id===id) currentRec.onboard=r.onboard;
+  var entry = logEntry('สร้างรหัสพนักงาน '+input);
+  apiUpdate(id, {onboard:r.onboard, logEntry:entry}).then(function(){
+    r.log=r.log||[]; r.log.push(entry);
+    toast('บันทึกรหัสพนักงาน '+input+' แล้ว'); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
 function sendApptEmail(typeKey){
   if(!currentRec) return;
@@ -1823,7 +1952,7 @@ function exportTigerSoft(){
   var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
   if(!starters.length){ alert('ยังไม่มีพนักงานที่ผ่านการคัดเลือก'); return; }
   // ตรวจว่ามีใครยังไม่กรอกข้อมูล TigerSoft ที่จำเป็น
-  var missing = starters.filter(function(r){ var t=(r.onboard||{}).tiger||{}; return !t.company||!t.empid||!t.sex||!t.marital||!t.salarytype; });
+  var missing = starters.filter(function(r){ var t=(r.onboard||{}).tiger||{}; var d=r.data||{}; return !t.company||!t.empid||!d.sex||!d.marital||!t.salarytype; });
   if(missing.length){
     var names = missing.map(function(r){var d=r.data||{};return (d.firstName||'')+' '+(d.lastName||'');}).join(', ');
     if(!confirm('มีพนักงาน '+missing.length+' คนที่ยังกรอกข้อมูล TigerSoft ไม่ครบ:\n'+names+'\n\nช่องที่ขาดจะเว้นว่างในไฟล์ ต้องการสร้างไฟล์ต่อหรือไม่?')) return;
@@ -1846,33 +1975,37 @@ function exportTigerSoft(){
     set('NT', d.prefix||'');
     set('NameT', d.firstName);
     set('SurnameT', d.lastName);
-    set('Sex', t.sex);
-    set('Section', deptOf(d.pos1)||'');       // ฝ่าย
-    set('Department', t.department||'');        // ส่วน
+    set('NameE', d.firstNameEn||'');
+    set('SurnameE', d.lastNameEn||'');
+    set('Sex', d.sex||'');                       // จากผู้สมัคร
+    set('Section', deptOf(d.pos1)||'');          // ฝ่าย
+    set('Department', t.department||'');          // ส่วน (HR)
     set('Position', d.pos1);
     set('Level', t.level||'');
     set('Type_Salary', t.salarytype);
-    set('FamilyStatus', t.marital);
+    set('FamilyStatus', d.marital||'');          // จากผู้สมัคร
     set('D_Start', thDate(startAppt.date));
-    set('WorkOut', 'B');                        // อยู่ = B
+    set('WorkOut', 'B');                          // อยู่ = B
     set('ID_Code', d.idCard);
     set('ID_CodeEnd', thDate(d.idExpiry));
     set('ID_Tax', t.tax||d.idCard);
     set('ID_Social', t.social||d.idCard);
     set('Hospital', t.hospital||'');
-    set('Salary', t.salary||d.salary||'');
+    set('Salary', '');                           // เว้นว่าง — HR กรอกใน TigerSoft โดยตรง
     set('DofB', thDate(d.dob));
+    set('Nationality', d.nationality||'');        // จากผู้สมัคร
+    set('Religion', d.religion||'');              // จากผู้สมัคร
     set('Tel', d.phone);
     set('Email', d.email);
-    set('Spouses_N', t.marital==='สมรส' ? (t.spousePrefix||'นาย') : '-');  // คำนำหน้าคู่สมรส (จำเป็น)
-    // ที่อยู่แบบแยกช่อง (ตรงกับ TigerSoft)
-    var pr=t.pr||{}, re=t.re||{};
+    set('Spouses_N', d.marital==='สมรส' ? (t.spousePrefix||'นาย') : '-');
+    // ที่อยู่แบบแยกช่อง (จากผู้สมัคร — prAddr=ปัจจุบัน, reAddr=ทะเบียนบ้าน)
+    var pr=d.prAddr||{}, re=d.reAddr||{};
     set('PR_Add', pr.add||''); set('PR_Soi', pr.soi||''); set('PR_Street', pr.street||'');
     set('PR_District', pr.district||''); set('PR_Aumphur', pr.amphur||''); set('PR_Province', pr.province||'');
-    set('PR_PostalCode', pr.postal||''); set('PR_Country', pr.country||'');
+    set('PR_PostalCode', pr.postal||''); set('PR_Country', pr.country||'ไทย');
     set('RE_Add', re.add||''); set('RE_Soi', re.soi||''); set('RE_Street', re.street||'');
     set('RE_District', re.district||''); set('RE_Aumphur', re.amphur||''); set('RE_Province', re.province||'');
-    set('RE_PostalCode', re.postal||''); set('RE_Country', re.country||'');
+    set('RE_PostalCode', re.postal||''); set('RE_Country', re.country||'ไทย');
     set('Institute1', firstEdu.school||'');
     set('Degree1', firstEdu.level||'');
     set('Major1', firstEdu.major||'');
@@ -2017,7 +2150,15 @@ function settingsCompany(){
     + '<div class="form-grid g2">'
     + '<div class="form-group"><label><span class="th">เบอร์ติดต่อ HR</span></label><input value="'+val(c.hrPhone)+'" placeholder="0xx-xxx-xxxx" oninput="settings.company.hrPhone=this.value"></div>'
     + '<div class="form-group"><label><span class="th">อีเมล HR (แสดงในเอกสาร)</span></label><input value="'+val(c.hrEmail)+'" oninput="settings.company.hrEmail=this.value"></div>'
-    + '</div></div>'
+    + '</div>'
+    + '<div class="section-label" style="margin-top:14px">🔢 การสร้างรหัสพนักงานอัตโนมัติ</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">เมื่อบันทึกนัด "วันเริ่มงาน" ระบบจะสร้างรหัสให้: <b>'+val(c.empPrefix||'AKR')+'</b> + ปี ค.ศ.(2 หลัก) + เดือน(2 หลัก) + เลขลำดับถัดไป(4 หลัก) — เช่น AKR'+new Date().toISOString().slice(2,4)+new Date().toISOString().slice(5,7)+('0000'+((parseInt(c.lastEmpSeq||1363,10))+1)).slice(-4)+'</div>'
+    + '<div class="form-grid g2">'
+    + '<div class="form-group"><label><span class="th">รหัสนำหน้า (บริษัท)</span></label><input value="'+val(c.empPrefix||'AKR')+'" oninput="settings.company.empPrefix=this.value" placeholder="AKR"></div>'
+    + '<div class="form-group"><label><span class="th">เลขลำดับพนักงานล่าสุด</span> <span class="en">เลขท้าย 4 หลักของรหัสล่าสุด</span></label><input type="number" value="'+val(c.lastEmpSeq||1363)+'" oninput="settings.company.lastEmpSeq=parseInt(this.value,10)||0" placeholder="1363"></div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:#b06d10;margin-top:4px">⚠ ปรับเลขนี้ให้ตรงกับรหัสล่าสุดใน TigerSoft จริง คนถัดไปจะได้เลขนี้ +1 (ปัจจุบันคนถัดไป = '+((parseInt(c.lastEmpSeq||1363,10))+1)+')</div>'
+    + '</div>'
     + '<div style="margin-top:14px"><button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button></div></div>';
 }
 function settingsTraining(){
@@ -2312,7 +2453,7 @@ function viewOnboardMenu(){
     return da<db?-1:1;
   });
   onboardSel = onboardSel || {};
-  var tigerDone=function(r){ var t=(r.onboard||{}).tiger||{}; return t.company&&t.empid&&t.sex&&t.marital&&t.salarytype; };
+  var tigerDone=function(r){ var t=(r.onboard||{}).tiger||{}; var d=r.data||{}; return t.company&&t.empid&&d.sex&&d.marital&&t.salarytype; };
   var trainProgress=function(r){
     var mods=(settings&&settings.trainModules)||[]; var tr=(r.onboard||{}).training||{};
     var done=mods.filter(function(m){var s=(tr[m.key]||{}).status; return s==='passed'||s==='skipped';}).length;
@@ -2483,31 +2624,36 @@ function buildTigerSoftBox(r){
   var sel=function(id,opts,cur){
     return '<select id="'+id+'"><option value="">— เลือก —</option>'+opts.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
   };
+  var empid = ts.empid || '';
+  var startDate = ((r.appts||{}).start||{}).date;
+  var empidBox = empid
+    ? '<div style="font-size:18px;font-weight:700;color:#1a4f8a;letter-spacing:1px">'+esc(empid)+'</div><span style="font-size:11px;color:var(--muted)">สร้างอัตโนมัติเมื่อบันทึกนัดเริ่มงาน — แก้ไขด้านล่างได้</span>'
+    : '<div style="font-size:13px;color:var(--warn)">ยังไม่มีรหัส — จะสร้างอัตโนมัติเมื่อบันทึกนัด "วันเริ่มงาน"'+(startDate?' หรือกดปุ่มสร้างด้านล่าง':'')+'</div>'
+      + (startDate?'<button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="genEmpIdFor(\''+r.id+'\')">🔢 สร้างรหัสพนักงาน</button>':'');
   return '<div style="background:#fff7ed;border:1px solid #f0c896;border-radius:8px;padding:14px;margin-top:10px">'
     + '<div style="font-size:13px;font-weight:600;color:#b06d10;margin-bottom:4px">🐯 ข้อมูลสำหรับนำเข้า TigerSoft</div>'
-    + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">กรอกข้อมูลที่ระบบ ATS ไม่มี เพื่อใช้สร้างไฟล์นำเข้า TigerSoft (ช่องที่มี * จำเป็นต้องกรอก)</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">ข้อมูลส่วนตัว/ที่อยู่/เพศ/สถานะ มาจากใบสมัครแล้ว — กรอกเฉพาะข้อมูลบริษัทที่นี่ (เงินเดือนกรอกใน TigerSoft โดยตรง)</div>'
+    + '<div style="background:#f4f8fd;border:1px solid #cfe0f5;border-radius:6px;padding:10px;margin-bottom:10px"><div style="font-size:12px;font-weight:600;color:#1a4f8a;margin-bottom:4px">รหัสพนักงาน</div>'+empidBox+'</div>'
     + '<div class="form-grid g3" style="gap:10px">'
-    + '<div class="form-group"><label><span class="th">รหัสบริษัท *</span></label><input id="ts_company" value="'+val(ts.company)+'" placeholder="เช่น AKR"></div>'
-    + '<div class="form-group"><label><span class="th">รหัสพนักงาน *</span></label><input id="ts_empid" value="'+val(ts.empid)+'" placeholder="เช่น 6701"></div>'
-    + '<div class="form-group"><label><span class="th">รหัสบัตรรูด *</span></label><input id="ts_cardid" value="'+val(ts.cardid||ts.empid)+'" placeholder="รหัสบัตรตอกบัตร"></div></div>'
+    + '<div class="form-group"><label><span class="th">รหัสบริษัท *</span></label><input id="ts_company" value="'+val(ts.company||'AKR')+'" placeholder="AKR"></div>'
+    + '<div class="form-group"><label><span class="th">รหัสพนักงาน *</span></label><input id="ts_empid" value="'+val(ts.empid)+'" placeholder="สร้างอัตโนมัติ"></div>'
+    + '<div class="form-group"><label><span class="th">รหัสบัตรรูด</span></label><input id="ts_cardid" value="'+val(ts.cardid||ts.empid)+'" placeholder="รหัสบัตรตอกบัตร"></div></div>'
     + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
-    + '<div class="form-group"><label><span class="th">เพศ *</span></label>'+sel('ts_sex',['ชาย','หญิง'],ts.sex)+'</div>'
-    + '<div class="form-group"><label><span class="th">สถานะครอบครัว *</span></label>'+sel('ts_marital',['โสด','สมรส','หม้าย','หย่า'],ts.marital)+'</div>'
-    + '<div class="form-group"><label><span class="th">วิธีคิดค่าจ้าง *</span></label>'+sel('ts_salarytype',['รายเดือน (Month)','รายวัน (Day)'],ts.salarytype)+'</div></div>'
-    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
-    + '<div class="form-group"><label><span class="th">เลขผู้เสียภาษี *</span></label><input id="ts_tax" value="'+val(ts.tax||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div>'
-    + '<div class="form-group"><label><span class="th">เลขประกันสังคม *</span></label><input id="ts_social" value="'+val(ts.social||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div></div>'
-    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
-    + '<div class="form-group"><label><span class="th">เงินเดือน</span></label><input id="ts_salary" value="'+val(ts.salary||d.salary)+'" placeholder="เช่น 15000" inputmode="numeric"></div>'
-    + '<div class="form-group"><label><span class="th">รพ.ประกันสังคม</span></label><input id="ts_hospital" value="'+val(ts.hospital)+'" placeholder="ระบุถ้ามี"></div>'
+    + '<div class="form-group"><label><span class="th">วิธีคิดค่าจ้าง *</span></label>'+sel('ts_salarytype',['รายเดือน (Month)','รายวัน (Day)'],ts.salarytype)+'</div>'
+    + '<div class="form-group"><label><span class="th">ส่วน/แผนก</span></label><input id="ts_department" value="'+val(ts.department)+'" placeholder="ระบุถ้ามี"></div>'
     + '<div class="form-group"><label><span class="th">ระดับพนักงาน</span></label><input id="ts_level" value="'+val(ts.level)+'" placeholder="ระบุถ้ามี"></div></div>'
     + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">เลขผู้เสียภาษี</span></label><input id="ts_tax" value="'+val(ts.tax||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div>'
+    + '<div class="form-group"><label><span class="th">เลขประกันสังคม</span></label><input id="ts_social" value="'+val(ts.social||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div></div>'
+    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">รพ.ประกันสังคม</span></label><input id="ts_hospital" value="'+val(ts.hospital)+'" placeholder="ระบุถ้ามี"></div>'
     + '<div class="form-group"><label><span class="th">เลขบัญชีธนาคาร</span></label><input id="ts_account" value="'+val(ts.account)+'" placeholder="ระบุถ้ามี"></div>'
     + '<div class="form-group"><label><span class="th">ธนาคาร</span></label><input id="ts_bank" value="'+val(ts.bank)+'" placeholder="เช่น กสิกรไทย"></div></div>'
-    + tigerAddressBlock_('pr','ที่อยู่ปัจจุบัน', ts.pr||autoSplitAddr_(d.presentAddr||d.houseAddr))
-    + tigerAddressBlock_('re','ที่อยู่ตามทะเบียนบ้าน', ts.re||autoSplitAddr_(d.houseAddr))
+    + '<div style="font-size:11px;color:var(--muted);margin-top:8px;padding:8px;background:#fffbf0;border-radius:6px">📋 ข้อมูลจากใบสมัครที่จะใส่ในไฟล์อัตโนมัติ: '
+    + esc(d.prefix||'')+esc(d.firstName||'')+' '+esc(d.lastName||'')+' · เพศ '+esc(d.sex||'-')+' · '+esc(d.marital||'-')+' · '+esc(d.nationality||'-')+'</div>'
+    + '<div style="margin-top:6px;font-size:11px;color:#b06d10">⚠ ช่องเงินเดือน (Salary) ในไฟล์จะเว้นว่างไว้ ให้กรอกใน TigerSoft โดยตรง</div>'
     + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveTigerFields()">💾 บันทึกข้อมูล TigerSoft</button>'
-    + '<span style="font-size:11px;color:var(--muted);margin-left:10px">สร้างไฟล์นำเข้าได้ที่ ศูนย์รวมรายงาน → พนักงานเริ่มงานใหม่</span></div>';
+    + '<span style="font-size:11px;color:var(--muted);margin-left:10px">สร้างไฟล์นำเข้าได้ที่ เมนูเริ่มงาน → 🐯 สร้างไฟล์ TigerSoft</span></div>';
 }
 // บล็อกกรอกที่อยู่แบบแยกช่อง (ตรงกับ TigerSoft)
 function tigerAddressBlock_(pfx, title, a){
@@ -2542,18 +2688,14 @@ function autoSplitAddr_(text){
 function saveTigerFields(){
   if(!currentRec) return;
   currentRec.onboard = currentRec.onboard || {};
-  var addr=function(pfx){
-    return { add:($('ts_'+pfx+'_add')||{}).value||'', soi:($('ts_'+pfx+'_soi')||{}).value||'', street:($('ts_'+pfx+'_street')||{}).value||'',
-      district:($('ts_'+pfx+'_district')||{}).value||'', amphur:($('ts_'+pfx+'_amphur')||{}).value||'', province:($('ts_'+pfx+'_province')||{}).value||'',
-      postal:($('ts_'+pfx+'_postal')||{}).value||'', country:($('ts_'+pfx+'_country')||{}).value||'' };
-  };
+  var prev = currentRec.onboard.tiger || {};
   currentRec.onboard.tiger = {
     company:($('ts_company')||{}).value||'', empid:($('ts_empid')||{}).value||'', cardid:($('ts_cardid')||{}).value||'',
-    sex:($('ts_sex')||{}).value||'', marital:($('ts_marital')||{}).value||'', salarytype:($('ts_salarytype')||{}).value||'',
-    tax:($('ts_tax')||{}).value||'', social:($('ts_social')||{}).value||'', salary:($('ts_salary')||{}).value||'',
+    salarytype:($('ts_salarytype')||{}).value||'', department:($('ts_department')||{}).value||'',
+    tax:($('ts_tax')||{}).value||'', social:($('ts_social')||{}).value||'',
     hospital:($('ts_hospital')||{}).value||'', level:($('ts_level')||{}).value||'',
     account:($('ts_account')||{}).value||'', bank:($('ts_bank')||{}).value||'',
-    pr:addr('pr'), re:addr('re')
+    spousePrefix: prev.spousePrefix||''   // เก็บค่าเดิมไว้
   };
   var entry = logEntry('บันทึกข้อมูล TigerSoft');
   apiUpdate(currentRec.id, {onboard:currentRec.onboard, logEntry:entry}).then(function(){
