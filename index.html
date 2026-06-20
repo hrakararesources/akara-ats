@@ -1881,6 +1881,7 @@ function printBulkSlips(){
   keys.forEach(function(key){
     var parts=key.split('__'); var recId=parts[0], typeKey=parts[1];
     var r=records.filter(function(x){return x.id===recId;})[0]; if(!r) return;
+    if(typeKey==='health'){ var ha=(r.appts||{})[typeKey]; if(ha && !ha.docNo) ensureHealthDocNo_(r, typeKey); }
     html += buildSlipHTML(r, typeKey);
   });
   var pa=$('printArea'); pa.innerHTML=html;
@@ -2964,29 +2965,52 @@ function buildSlipHTML(rec, typeKey){
   if(typeKey==='health'){
     var idCard = d.idCard || '';
     var prefix = d.prefix || d.title || '';
-    return '<div class="pp" style="height:auto;min-height:0;padding:14mm 16mm">'
-      + ppHead()
-      + '<div class="pp-title" style="margin-bottom:2mm">ใบส่งตัวตรวจสุขภาพพนักงานใหม่<br><span style="font-size:9pt;font-weight:400">Health Examination Referral</span></div>'
-      + '<p style="font-size:10pt;margin:3mm 0">เรียน ผู้อำนวยการ/เจ้าหน้าที่ <b>'+(esc(a.place)||'โรงพยาบาล')+'</b></p>'
-      + '<p style="font-size:10pt;margin:0 0 4mm">บริษัทฯ ขอส่งตัวบุคคลดังต่อไปนี้เข้ารับการตรวจสุขภาพก่อนเริ่มงาน ตามข้อตกลงระหว่างบริษัทกับโรงพยาบาล โดยบริษัทเป็นผู้รับผิดชอบค่าใช้จ่ายตามแผนการตรวจที่ระบุ</p>'
-      + '<table style="width:100%;font-size:11pt;border-collapse:collapse">'
-      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa;width:40mm">ชื่อ-นามสกุล</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3"><b>'+esc(prefix)+' '+esc(name)+'</b></td></tr>'
-      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">เลขบัตรประชาชน</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3"><b>'+esc(idCard||'-')+'</b></td></tr>'
-      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">ฝ่าย (Division)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.dept||'-')+'</td>'
-        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa;width:28mm">แผนก (Dept.)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.section||'-')+'</td></tr>'
-      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">ตำแหน่ง (Position)</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(a.position||d.pos1||'-')+'</td>'
-        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">เบอร์โทร</td><td style="border:0.5pt solid #888;padding:2mm 3mm">'+esc(d.phone||'-')+'</td></tr>'
-      + '<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#fff4d6"><b>แผนการตรวจ</b></td><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#fff4d6"><b>'+(a.plan?'แผน '+esc(a.plan):'(ระบุที่บริษัท)')+'</b></td>'
-        + '<td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">วันที่ตรวจ</td><td style="border:0.5pt solid #888;padding:2mm 3mm"><b>'+dateTH(a.date)+(a.time?' '+esc(a.time)+' น.':'')+'</b></td></tr>'
-      + (a.note?'<tr><td style="border:0.5pt solid #888;padding:2mm 3mm;background:#eef3fa">หมายเหตุ</td><td style="border:0.5pt solid #888;padding:2mm 3mm" colspan="3">'+esc(a.note)+'</td></tr>':'')
+    var docNo = a.docNo || '(ออกเลขเมื่อพิมพ์)';
+    var issueDate = dateTH(new Date().toISOString());
+    var cell = function(label,value,bg){
+      return '<td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;background:'+(bg||'#fff')+';font-size:8.5pt;color:#5a6b80;white-space:nowrap;vertical-align:middle">'+label+'</td>'
+        + '<td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;font-size:10.5pt;color:#1a2533;vertical-align:middle">'+value+'</td>';
+    };
+    return '<div class="pp" style="height:auto;min-height:0;padding:0;font-family:\'Sarabun\',Tahoma,sans-serif;color:#1a2533">'
+      // แถบหัวกระดาษ น้ำเงิน-ทอง
+      + '<div style="background:linear-gradient(135deg,#16407a 0%,#1a4f8a 60%,#2461a8 100%);padding:7mm 12mm 6mm;position:relative">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      + '<div style="display:flex;align-items:center;gap:4mm"><img src="'+LOGO_SRC+'" alt="Akara" style="height:12mm;background:#fff;border-radius:2mm;padding:1.5mm 3mm">'
+      + '<div style="color:#fff"><div style="font-size:8pt;letter-spacing:.5px;opacity:.85">CHATREE GOLD MINE</div><div style="font-size:7.5pt;opacity:.7">บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)</div></div></div>'
+      + '<div style="text-align:right;color:#fff"><div style="font-size:8pt;opacity:.8">เลขที่เอกสาร / Doc No.</div><div style="font-size:12pt;font-weight:700;color:#f5c842;letter-spacing:.5px">'+esc(docNo)+'</div></div>'
+      + '</div>'
+      + '<div style="height:1.2mm;background:#f5c842;width:24mm;border-radius:2px;margin-top:5mm"></div>'
+      + '<div style="color:#fff;font-size:15pt;font-weight:700;margin-top:3mm;letter-spacing:.3px">ใบส่งตัวตรวจสุขภาพพนักงานใหม่</div>'
+      + '<div style="color:#cdddf2;font-size:9pt;font-weight:400">Health Examination Referral</div>'
+      + '</div>'
+      // เนื้อหา
+      + '<div style="padding:7mm 12mm 0">'
+      + '<table style="width:100%;font-size:9pt;margin-bottom:4mm"><tr>'
+      + '<td style="border:none;padding:0;color:#5a6b80;width:50%">เรียน ผู้อำนวยการ/เจ้าหน้าที่ <b style="color:#1a4f8a;font-size:10.5pt">'+(esc(a.place)||'โรงพยาบาล')+'</b></td>'
+      + '<td style="border:none;padding:0;text-align:right;color:#5a6b80">วันที่ออกเอกสาร '+issueDate+'</td></tr></table>'
+      + '<p style="font-size:9.5pt;margin:0 0 5mm;color:#3a4759;line-height:1.6">บริษัทฯ ขอส่งตัวบุคคลดังต่อไปนี้เข้ารับการตรวจสุขภาพก่อนเริ่มงาน ตามข้อตกลงระหว่างบริษัทกับโรงพยาบาล โดยบริษัทเป็นผู้รับผิดชอบค่าใช้จ่ายตามแผนการตรวจที่ระบุ</p>'
+      + '<table style="width:100%;border-collapse:collapse">'
+      + '<tr><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;background:#f0f5fb;font-size:8.5pt;color:#5a6b80;white-space:nowrap;width:38mm">ชื่อ-นามสกุล</td><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm" colspan="3"><b style="font-size:11pt">'+esc(prefix)+' '+esc(name)+'</b></td></tr>'
+      + '<tr><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;background:#f0f5fb;font-size:8.5pt;color:#5a6b80;white-space:nowrap">เลขบัตรประชาชน</td><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;font-size:10.5pt;letter-spacing:1px" colspan="3">'+esc(idCard||'-')+'</td></tr>'
+      + '<tr>'+cell('ฝ่าย (Division)',esc(a.dept||'-'),'#f0f5fb')+cell('แผนก (Dept.)',esc(a.section||'-'),'#f0f5fb')+'</tr>'
+      + '<tr>'+cell('ตำแหน่ง (Position)',esc(a.position||d.pos1||'-'),'#f0f5fb')+cell('เบอร์โทร (Tel.)',esc(d.phone||'-'),'#f0f5fb')+'</tr>'
+      + '<tr><td style="border:0.4pt solid #e0c053;padding:2.6mm 3mm;background:#fdf6e0;font-size:8.5pt;color:#9a7a1a;white-space:nowrap"><b>แผนการตรวจ</b></td>'
+        + '<td style="border:0.4pt solid #e0c053;padding:2.6mm 3mm;background:#fdf6e0;font-size:10.5pt"><b style="color:#1a4f8a">'+(a.plan?'แผน '+esc(a.plan):'(ระบุที่บริษัท)')+'</b></td>'
+        + cell('วันที่ตรวจ','<b style="color:#c0392b">'+dateTH(a.date)+(a.time?' '+esc(a.time)+' น.':'')+'</b>','#f0f5fb')+'</tr>'
+      + (a.note?'<tr><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm;background:#f0f5fb;font-size:8.5pt;color:#5a6b80">หมายเหตุ</td><td style="border:0.4pt solid #c9d4e3;padding:2.6mm 3mm" colspan="3">'+esc(a.note)+'</td></tr>':'')
       + '</table>'
-      + '<p style="margin-top:3mm;font-size:9.5pt;color:#b00">⚠ กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง และนำบัตรประชาชนตัวจริงมาแสดง</p>'
-      + '<table style="width:100%;border:none;margin-top:12mm;font-size:10pt"><tr>'
-      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom">ลงชื่อ ............................................<br>( ............................................ )<br>เจ้าหน้าที่ผู้ส่งตัว / ฝ่ายทรัพยากรบุคคล<br>วันที่ '+dateTH(new Date().toISOString())+'</td>'
-      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom">ลงชื่อ ............................................<br>( ............................................ )<br>ผู้รับการตรวจ</td>'
+      + '<div style="margin-top:4mm;padding:3mm 4mm;background:#fdeaea;border-left:1mm solid #c0392b;border-radius:1mm;font-size:9pt;color:#a02020"><b>⚠ คำแนะนำก่อนตรวจ:</b> กรุณางดอาหารและเครื่องดื่ม (ยกเว้นน้ำเปล่า) ก่อนตรวจอย่างน้อย 8 ชั่วโมง และนำบัตรประชาชนตัวจริงมาแสดง</div>'
+      + '<table style="width:100%;border:none;margin-top:14mm;font-size:9.5pt"><tr>'
+      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom;color:#3a4759">ลงชื่อ ............................................<br><span style="font-size:8.5pt;color:#7a8699">( ............................................ )</span><br><b style="font-size:9pt">เจ้าหน้าที่ผู้ส่งตัว / ฝ่ายทรัพยากรบุคคล</b><br><span style="font-size:8.5pt;color:#7a8699">วันที่ '+issueDate+'</span></td>'
+      + '<td style="border:none;width:50%;text-align:center;vertical-align:bottom;color:#3a4759">ลงชื่อ ............................................<br><span style="font-size:8.5pt;color:#7a8699">( ............................................ )</span><br><b style="font-size:9pt">ผู้รับการตรวจ</b><br><span style="font-size:8.5pt;color:#7a8699">&nbsp;</span></td>'
       + '</tr></table>'
-      + '<p style="margin-top:6mm;font-size:9.5pt">ออกโดย <b>'+esc(co.name||'')+'</b><br>'+addrHtml+(co.hrPhone?'<br>โทร. '+esc(co.hrPhone):'')+'</p>'
-      + '<div class="pp-footer" style="margin-top:8mm"><span><b>'+CONFIG.DOC.no+'</b> ใบส่งตัวตรวจสุขภาพ</span><span>ออกเอกสาร '+dateTH(new Date().toISOString())+' โดย '+esc((session&&session.name)||'-')+'</span><span>เลขรับ '+esc(rec.id)+'</span></div>'
+      + '</div>'
+      // ฟุตเตอร์
+      + '<div style="margin-top:8mm;border-top:0.4pt solid #d5dde7;padding:4mm 12mm;background:#f7f9fc">'
+      + '<table style="width:100%;border:none;font-size:8pt;color:#5a6b80"><tr>'
+      + '<td style="border:none;padding:0;vertical-align:top"><b style="color:#1a4f8a;font-size:8.5pt">'+esc(co.name||'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)')+'</b><br>'+(addrHtml||'99 หมู่ที่ 9 ตำบลเขาเจ็ดลูก อำเภอทับคล้อ จ.พิจิตร 66230')+(co.hrPhone?'<br>โทร. '+esc(co.hrPhone):'')+'</td>'
+      + '<td style="border:none;padding:0;text-align:right;vertical-align:bottom;color:#9aa7b8;font-size:7.5pt">'+esc(CONFIG.DOC.no)+' · ออกโดย '+esc((session&&session.name)||'-')+'<br>เลขรับใบสมัคร '+esc(rec.id)+'</td>'
+      + '</tr></table></div>'
       + '</div>';
   }
 
@@ -3024,11 +3048,32 @@ function printApptSlip(typeKey){
   if(!currentRec) return;
   var a = (currentRec.appts||{})[typeKey];
   if(!a){ alert('ยังไม่มีข้อมูลนัดหมาย'); return; }
+  // สร้างเลขที่เอกสารใบส่งตัว (ครั้งแรกที่พิมพ์ — ล็อกไว้ใช้ซ้ำ)
+  if(typeKey==='health' && !a.docNo){
+    ensureHealthDocNo_(currentRec, typeKey);
+  }
   var pa = $('printArea');
   pa.innerHTML = buildSlipHTML(currentRec, typeKey);
   document.body.classList.remove('preview-mode');
   document.body.classList.add('printing');
   setTimeout(function(){ window.print(); document.body.classList.remove('printing'); }, 120);
+}
+// สร้างเลขที่เอกสารใบส่งตัวตรวจสุขภาพ: HER-YYYYMMDD-NNNN (รันต่อเนื่อง เก็บใน settings)
+function ensureHealthDocNo_(rec, typeKey){
+  var a = (rec.appts||{})[typeKey];
+  if(!a || a.docNo) return a&&a.docNo;
+  settings = settings||{}; settings.company = settings.company||{};
+  var seq = (parseInt(settings.company.lastHerSeq||0,10)) + 1;
+  var now = new Date();
+  var ymd = now.getFullYear()+('0'+(now.getMonth()+1)).slice(-2)+('0'+now.getDate()).slice(-2);
+  a.docNo = 'HER-'+ymd+'-'+('0000'+seq).slice(-4);
+  settings.company.lastHerSeq = seq;
+  // บันทึกเลขกลับเข้าระบบ (เงียบ) + อัปเดต settings
+  rec.appts[typeKey] = a;
+  if(typeof apiUpdate==='function'){ apiUpdate(rec.id, {appts:rec.appts}).catch(function(){}); }
+  if(typeof apiSaveSettings==='function'){ apiSaveSettings(settings).catch(function(){}); }
+  records.forEach(function(x){ if(x.id===rec.id) x.appts=rec.appts; });
+  return a.docNo;
 }
 function printRecord(rec){
   if(!rec){ alert('ไม่พบข้อมูลสำหรับพิมพ์'); return; }
