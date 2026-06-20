@@ -74,6 +74,9 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .photo-box{width:120px;height:150px;border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;background:#fafbfc;transition:border-color .15s}
 .photo-box:hover{border-color:var(--primary)}
 .photo-box img{width:100%;height:100%;object-fit:cover}
+.crop-frame{position:relative;margin:0 auto;overflow:hidden;border-radius:8px;background:#222;cursor:move;touch-action:none;user-select:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.crop-img{position:absolute;max-width:none;pointer-events:none;user-select:none}
+.crop-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px);background-size:33.33% 33.33%}
 .photo-box .ph-hint{font-size:10px;color:var(--muted);text-align:center;padding:8px}
 .pdpa-item{border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
 .pdpa-item p{font-size:13px;line-height:1.6;margin-bottom:8px}
@@ -979,23 +982,115 @@ function verifyOtpInput(){
   toast('พร้อมส่งใบสมัคร');
   render();
 }
+var cropState = null;   // {img, scale, minScale, x, y, baseW, baseH}
+var CROP_AR = 4/5;      // สัดส่วนกรอบรูป (กว้าง:สูง = 4:5 ≈ รูป 1 นิ้ว)
 function handlePhoto(inp){
   var f = inp.files[0]; if(!f) return;
+  if(f.size > 12*1024*1024){ alert('ไฟล์รูปใหญ่เกินไป (เกิน 12MB) กรุณาเลือกรูปที่เล็กลง'); inp.value=''; return; }
   var r = new FileReader();
   r.onload = function(e){
     var img = new Image();
-    img.onload = function(){
-      var maxW = 240;
-      var sc = Math.min(1, maxW/img.width);
-      var cv = document.createElement('canvas');
-      cv.width = Math.round(img.width*sc); cv.height = Math.round(img.height*sc);
-      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
-      photoDataURL = cv.toDataURL('image/jpeg',0.78);
-      render();
-    };
+    img.onload = function(){ openCropModal(img); };
+    img.onerror = function(){ alert('ไม่สามารถอ่านไฟล์รูปได้ กรุณาเลือกไฟล์รูปภาพ'); };
     img.src = e.target.result;
   };
   r.readAsDataURL(f);
+  inp.value='';   // เคลียร์เพื่อให้เลือกไฟล์เดิมซ้ำได้
+}
+// เปิดหน้าต่างครอบตัดรูป (สัดส่วน 1 นิ้ว 4:5)
+function openCropModal(img){
+  // กรอบแสดงผล (กว้างคงที่ ปรับสูงตามสัดส่วน)
+  var frameW = 260, frameH = Math.round(frameW/CROP_AR);   // 260 x 325
+  // สเกลต่ำสุดที่รูปยังเต็มกรอบ (cover)
+  var minScale = Math.max(frameW/img.width, frameH/img.height);
+  var scale = minScale;
+  var dispW = img.width*scale, dispH = img.height*scale;
+  cropState = {
+    img:img, frameW:frameW, frameH:frameH, minScale:minScale, maxScale:minScale*4,
+    scale:scale,
+    x:(frameW-dispW)/2, y:(frameH-dispH)/2,   // จัดกึ่งกลาง
+    drag:null
+  };
+  render();
+}
+function cropModalHtml(){
+  if(!cropState) return '';
+  var s=cropState;
+  var dispW=s.img.width*s.scale, dispH=s.img.height*s.scale;
+  return '<div class="modal-overlay" style="z-index:2000">'
+    + '<div class="modal-box" style="max-width:340px;text-align:center">'
+    + '<h3 style="margin:0 0 4px;color:var(--primary)">ปรับรูปถ่าย</h3>'
+    + '<p style="font-size:12px;color:var(--muted);margin:0 0 12px">เลื่อนรูปและซูมให้ใบหน้าอยู่ในกรอบ (สัดส่วนรูป 1 นิ้ว)</p>'
+    + '<div id="cropFrame" class="crop-frame" style="width:'+s.frameW+'px;height:'+s.frameH+'px"'
+      + ' onmousedown="cropDragStart(event)" ontouchstart="cropDragStart(event)">'
+    + '<img src="'+s.img.src+'" class="crop-img" style="width:'+dispW+'px;height:'+dispH+'px;left:'+s.x+'px;top:'+s.y+'px" draggable="false">'
+    + '<div class="crop-grid"></div></div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin:14px 4px 4px">'
+    + '<span style="font-size:16px">🔍</span>'
+    + '<input type="range" min="'+s.minScale+'" max="'+s.maxScale+'" step="0.001" value="'+s.scale+'" style="flex:1" oninput="cropZoom(this.value)">'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:14px">'
+    + '<button class="btn btn-primary" style="flex:1" onclick="applyCrop()">✓ ใช้รูปนี้</button>'
+    + '<button class="btn" onclick="cropState=null;render()">ยกเลิก</button></div>'
+    + '</div></div>';
+}
+function cropZoom(v){
+  var s=cropState; if(!s) return;
+  var newScale=parseFloat(v);
+  // ซูมโดยยึดจุดกึ่งกลางกรอบ
+  var cx=s.frameW/2, cy=s.frameH/2;
+  var ratio=newScale/s.scale;
+  s.x = cx - (cx - s.x)*ratio;
+  s.y = cy - (cy - s.y)*ratio;
+  s.scale=newScale;
+  clampCrop(); updateCropDom();
+}
+function cropDragStart(e){
+  var s=cropState; if(!s) return;
+  e.preventDefault();
+  var pt=e.touches?e.touches[0]:e;
+  s.drag={sx:pt.clientX, sy:pt.clientY, ox:s.x, oy:s.y};
+  document.addEventListener('mousemove',cropDragMove); document.addEventListener('mouseup',cropDragEnd);
+  document.addEventListener('touchmove',cropDragMove,{passive:false}); document.addEventListener('touchend',cropDragEnd);
+}
+function cropDragMove(e){
+  var s=cropState; if(!s||!s.drag) return;
+  e.preventDefault();
+  var pt=e.touches?e.touches[0]:e;
+  s.x=s.drag.ox+(pt.clientX-s.drag.sx);
+  s.y=s.drag.oy+(pt.clientY-s.drag.sy);
+  clampCrop(); updateCropDom();
+}
+function cropDragEnd(){
+  var s=cropState; if(s) s.drag=null;
+  document.removeEventListener('mousemove',cropDragMove); document.removeEventListener('mouseup',cropDragEnd);
+  document.removeEventListener('touchmove',cropDragMove); document.removeEventListener('touchend',cropDragEnd);
+}
+// กันไม่ให้ลากรูปจนเกิดขอบว่างในกรอบ
+function clampCrop(){
+  var s=cropState; var dispW=s.img.width*s.scale, dispH=s.img.height*s.scale;
+  if(s.x>0) s.x=0; if(s.y>0) s.y=0;
+  if(s.x < s.frameW-dispW) s.x=s.frameW-dispW;
+  if(s.y < s.frameH-dispH) s.y=s.frameH-dispH;
+}
+function updateCropDom(){
+  var s=cropState; if(!s) return;
+  var im=document.querySelector('#cropFrame .crop-img'); if(!im) return;
+  var dispW=s.img.width*s.scale, dispH=s.img.height*s.scale;
+  im.style.width=dispW+'px'; im.style.height=dispH+'px'; im.style.left=s.x+'px'; im.style.top=s.y+'px';
+}
+function applyCrop(){
+  var s=cropState; if(!s) return;
+  // วาดเฉพาะส่วนในกรอบ ลงแคนวาสผลลัพธ์ (ความละเอียดเอาต์พุต 240x300)
+  var outW=240, outH=Math.round(outW/CROP_AR);
+  var cv=document.createElement('canvas'); cv.width=outW; cv.height=outH;
+  var ctx=cv.getContext('2d');
+  // map: พิกัดในกรอบ → พิกัดในรูปต้นฉบับ
+  var srcX=(-s.x)/s.scale, srcY=(-s.y)/s.scale;
+  var srcW=s.frameW/s.scale, srcH=s.frameH/s.scale;
+  ctx.drawImage(s.img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+  photoDataURL=cv.toDataURL('image/jpeg',0.82);
+  cropState=null; render();
 }
 
 // ─── Validation & submit ─────────────────────────────────────────────
@@ -3190,7 +3285,7 @@ function render(){
     + '<span class="step-info">ขั้นตอนที่ '+(cur+1)+' / '+STEPS.length+'</span>'
     + '<button class="btn '+(cur===STEPS.length-1?'btn-success':'btn-primary')+'" id="btnNext" onclick="nextStep()">'+(cur===STEPS.length-1?'✓ ส่งใบสมัคร':'ถัดไป →')+'</button>'
     + '</div>';
-  c.innerHTML = backHome + stepper + body + nav;
+  c.innerHTML = backHome + stepper + body + nav + (cropState?cropModalHtml():'');
 }
 
 // ─── หน้ายืนยันการอบรม (สำหรับผู้อบรม — เข้าผ่านลิงก์ ไม่ต้อง login) ───
