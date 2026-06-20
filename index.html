@@ -3009,7 +3009,7 @@ function buildSlipHTML(rec, typeKey){
       + '<div style="margin-top:8mm;border-top:0.4pt solid #d5dde7;padding:4mm 12mm;background:#f7f9fc">'
       + '<table style="width:100%;border:none;font-size:8pt;color:#5a6b80"><tr>'
       + '<td style="border:none;padding:0;vertical-align:top"><b style="color:#1a4f8a;font-size:8.5pt">'+esc(co.name||'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)')+'</b><br>'+(addrHtml||'99 หมู่ที่ 9 ตำบลเขาเจ็ดลูก อำเภอทับคล้อ จ.พิจิตร 66230')+(co.hrPhone?'<br>โทร. '+esc(co.hrPhone):'')+'</td>'
-      + '<td style="border:none;padding:0;text-align:right;vertical-align:bottom;color:#9aa7b8;font-size:7.5pt">'+esc(CONFIG.DOC.no)+' · ออกโดย '+esc((session&&session.name)||'-')+'<br>เลขรับใบสมัคร '+esc(rec.id)+'</td>'
+      + '<td style="border:none;padding:0;text-align:right;vertical-align:bottom;color:#9aa7b8;font-size:7.5pt">ออกโดย '+esc((session&&session.name)||'-')+'<br>เลขรับใบสมัคร '+esc(rec.id)+'</td>'
       + '</tr></table></div>'
       + '</div>';
   }
