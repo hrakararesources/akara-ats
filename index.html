@@ -1587,43 +1587,54 @@ function hrShell(content){
     + '<main style="flex:1;min-width:0">'+content+'</main></div>';
 }
 function viewDashboard(){
-  if(hrMenu==='dashboard') return hrShell(viewOverview());
-  if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
-  if(hrMenu==='appts') return hrShell(viewAppointments());
-  if(hrMenu==='reports') return hrShell(viewReports());
-  if(hrMenu==='settings') return hrShell(viewSettings());
-  if(hrMenu==='onboard'){
-    var canOnboard = isDemo() || (session && (session.role==='admin' || session.canOnboard===true));
-    if(!canOnboard){ hrMenu='applicants'; return hrShell(viewApplicants()); }
-    return hrShell(viewOnboardMenu());
+  try {
+    if(hrMenu==='dashboard') return hrShell(viewOverview());
+    if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
+    if(hrMenu==='appts') return hrShell(viewAppointments());
+    if(hrMenu==='reports') return hrShell(viewReports());
+    if(hrMenu==='settings') return hrShell(viewSettings());
+    if(hrMenu==='onboard'){
+      var canOnboard = isDemo() || (session && (session.role==='admin' || session.canOnboard===true));
+      if(!canOnboard){ hrMenu='applicants'; return hrShell(viewApplicants()); }
+      return hrShell(viewOnboardMenu());
+    }
+    if(hrMenu==='applicants') return hrShell(viewApplicants());
+    return hrShell(viewOverview());
+  } catch(err){
+    // กันหน้าขาวถ้า render พังระหว่างโหลดข้อมูล — แสดงสถานะกำลังโหลดแทน
+    return hrShell('<div class="empty-state" style="padding:40px;text-align:center"><div style="font-size:32px">⏳</div><p style="margin-top:10px">กำลังโหลดข้อมูล...</p>'
+      + '<p style="font-size:12px;color:var(--muted)">หากค้างนานเกินไป กรุณารีเฟรชหน้า (Ctrl+Shift+R)</p></div>');
   }
-  if(hrMenu==='applicants') return hrShell(viewApplicants());
-  return hrShell(viewOverview());
 }
 // ── ภาพรวม Dashboard ──
 function viewOverview(){
+  // ป้องกันกรณีข้อมูลยังโหลดไม่เสร็จ (เพิ่ง login)
+  var S = settings || {};
+  var recs = records || [];
+  var jbs = jobs || [];
+  var stages = (S.stages && S.stages.length) ? S.stages : ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
   var today = new Date().toISOString().slice(0,10);
   var thisMonth = today.slice(0,7);
-  var total = records.length;
+  var total = recs.length;
   var byStatus = {};
-  (settings.stages||['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน']).forEach(function(s){ byStatus[s]=0; });
-  records.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
+  stages.forEach(function(s){ byStatus[s]=0; });
+  recs.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
   var newCount = byStatus['ใหม่']||0;
   var passed = byStatus['ผ่าน']||0;
   // นัดหมายที่จะถึง
   var upcomingAppts = collectAppts_().filter(function(x){return x.appt.date>=today;});
   // เริ่มงานเดือนนี้
-  var startingThisMonth = records.filter(function(r){ var s=((r.appts||{}).start||{}).date; return s && s.slice(0,7)===thisMonth; }).length;
+  var startingThisMonth = recs.filter(function(r){ var s=((r.appts||{}).start||{}).date; return s && s.slice(0,7)===thisMonth; }).length;
   // อบรมค้าง (มีคนผ่านแต่ training ยังไม่ครบ)
-  var mods=(settings.trainModules||[]);
-  var trainPending = records.filter(function(r){
+  var mods=(S.trainModules||[]);
+  var trainPending = recs.filter(function(r){
     if(r.status!=='ผ่าน'||!mods.length) return false;
     var tr=(r.onboard||{}).training||{};
     var done=mods.filter(function(m){var st=(tr[m.key]||{}).status;return st==='passed'||st==='skipped';}).length;
     return done<mods.length;
   }).length;
   // เอกสารรอ (TigerSoft ยังไม่ครบ ในกลุ่มผ่าน)
-  var tigerPending = records.filter(function(r){
+  var tigerPending = recs.filter(function(r){
     if(r.status!=='ผ่าน') return false;
     var t=(r.onboard||{}).tiger||{}; var d=r.data||{};
     return !(t.company&&t.empid&&d.sex&&d.marital&&t.salarytype);
@@ -1633,7 +1644,7 @@ function viewOverview(){
       + '<div class="stat-ico" style="background:'+color+'22;color:'+color+'">'+icon+'</div>'
       + '<div><div class="stat-num">'+value+'</div><div class="stat-lbl">'+label+'</div></div></div>';
   };
-  var openJobs = jobs.filter(function(j){return j.status==='เปิดรับ';}).length;
+  var openJobs = jbs.filter(function(j){return j.status==='เปิดรับ';}).length;
   // การ์ดสถิติหลัก
   var cards = '<div class="stat-grid">'
     + card('📋','ผู้สมัครทั้งหมด',total,'#1a4f8a','applicants')
@@ -1665,7 +1676,7 @@ function viewOverview(){
     + '</div>';
   // สถานะผู้สมัคร (แท่ง)
   var statusBar = '<div class="dash-section"><div class="dash-head">📊 ผู้สมัครตามสถานะ</div><div style="padding:4px 2px">'
-    + (settings.stages||[]).map(function(s){
+    + stages.map(function(s){
         var n=byStatus[s]||0; var pct=total?Math.round(n/total*100):0;
         return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>'+esc(s)+'</span><span style="color:var(--muted)">'+n+' คน</span></div>'
           + '<div style="background:#eef1f5;border-radius:4px;height:8px;overflow:hidden"><div style="background:'+statusColor_(s)+';height:100%;width:'+pct+'%"></div></div></div>';
@@ -1826,7 +1837,7 @@ function reportJobs(){
 // ── เมนูตารางนัดหมาย (ศูนย์รวมจัดการนัด — ส่งอีเมล/พิมพ์/แก้ไขได้เลย) ──
 function collectAppts_(){
   var items = [];
-  records.forEach(function(r){
+  (records||[]).forEach(function(r){
     var a=r.appts||{};
     APPT_TYPES.forEach(function(t){
       if(a[t.k] && a[t.k].date){ items.push({ rec:r, type:t, appt:a[t.k] }); }
