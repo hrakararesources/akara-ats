@@ -182,8 +182,24 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .otp-box{margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f7f9fc}
 .otp-box.ok{background:#f3faf6;border-color:#a8dcc0}
 /* Reports Center */
-/* Bulk select + modal */
-.bulk-bar{display:flex;align-items:center;gap:12px;background:#eaf2fd;border:1px solid #c5ddf5;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px}
+/* Dashboard */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:box-shadow .15s,transform .15s}
+.stat-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
+.stat-ico{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.stat-num{font-size:24px;font-weight:700;color:var(--text);line-height:1.1}
+.stat-lbl{font-size:12px;color:var(--muted)}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:760px){.dash-grid{grid-template-columns:1fr}}
+.dash-section{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.dash-head{font-size:14px;font-weight:600;color:var(--primary);margin-bottom:10px}
+.todo-item{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid #f0f2f5;cursor:pointer;font-size:13.5px}
+.todo-item:last-child{border-bottom:none}
+.todo-item:hover{background:#f7f9fc}
+.todo-ico{font-size:17px;flex-shrink:0;width:22px;text-align:center}
+.todo-item>span:nth-child(2){flex:1}
+.todo-arr{color:var(--muted);font-size:18px}
+/* Bulk select + modal */.bulk-bar{display:flex;align-items:center;gap:12px;background:#eaf2fd;border:1px solid #c5ddf5;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px}
 .bulk-bar span{font-weight:600;color:var(--primary)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
 .modal-box{background:#fff;border-radius:12px;padding:24px;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2);max-height:85vh;overflow:auto}
@@ -346,14 +362,23 @@ var APPT_TYPES = [
 var STEPS = ['ตำแหน่งงาน','ข้อมูลส่วนตัว','การศึกษา','ประวัติการทำงาน','ทักษะ & อื่นๆ','เอกสารแนบ','ความยินยอม PDPA'];
 // ── Onboarding (วันแรกเริ่มงาน) ──
 var SHIRT_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
+// รายการ checklist วันแรก แบ่งหมวด (task = ชื่อ, key = รหัส)
 var DEFAULT_CHECKLIST = [
-  'รับชุดยูนิฟอร์ม',
-  'เซ็นสัญญาจ้างงาน',
-  'อบรมความปลอดภัย (Safety Induction)',
-  'ถ่ายรูป / ทำบัตรพนักงาน',
-  'รับอุปกรณ์ป้องกันส่วนบุคคล (PPE)',
-  'ปฐมนิเทศ / แนะนำบริษัทและกฎระเบียบ',
-  'เปิดบัญชีเงินเดือน / ส่งเอกสารการเงิน'
+  { key:'uniform',  task:'รับเครื่องแบบพนักงาน' },
+  { key:'photo',    task:'ถ่ายรูปทำบัตรพนักงาน' },
+  { key:'ppe',      task:'รับอุปกรณ์ Safety (รองเท้า/แว่น/หมวก)' },
+  { key:'contract', task:'เซ็นสัญญาจ้างงาน' },
+  { key:'orient',   task:'ปฐมนิเทศ / แนะนำบริษัทและกฎระเบียบ' },
+  { key:'bank',     task:'เปิดบัญชีเงินเดือน / ส่งเอกสารการเงิน' }
+];
+// อุปกรณ์ Safety ที่ต้องเบิก (พร้อมช่องไซส์/เบอร์)
+var SAFETY_ITEMS = [
+  { key:'shoe',    label:'รองเท้าเซฟตี้',  unit:'เบอร์' },
+  { key:'glasses', label:'แว่นตานิรภัย',   unit:'' },
+  { key:'helmet',  label:'หมวกนิรภัย',     unit:'' },
+  { key:'vest',    label:'เสื้อสะท้อนแสง', unit:'ไซส์' },
+  { key:'gloves',  label:'ถุงมือ',         unit:'' },
+  { key:'earplug', label:'ที่อุดหู / earmuff', unit:'' }
 ];
 var DOC_TYPES = [
   { k:'resume',   l:'Resume / ประวัติย่อ',          icon:'📄', hint:'PDF หรือรูปภาพ' },
@@ -367,7 +392,7 @@ var DOC_MAX_FILE = 5 * 1024 * 1024;     // 5MB ต่อไฟล์ (PDF)
 var DOC_MAX_TOTAL = 15 * 1024 * 1024;   // รวมทุกไฟล์
 
 var view = 'home';             // home | apply | success | login | dashboard | detail
-var hrMenu = 'applicants';     // applicants | jobs | settings
+var hrMenu = 'dashboard';     // dashboard | applicants | jobs | settings
 var cur = 0;
 var photoDataURL = null;
 var records = [];
@@ -1538,6 +1563,7 @@ function viewHome(){
 function hrShell(content){
   var canOnboard = isDemo() || (session && (session.role==='admin' || session.canOnboard===true));
   var menuItems = [
+    {k:'dashboard',  icon:'📊', l:'ภาพรวม (Dashboard)'},
     {k:'applicants', icon:'📋', l:'ทะเบียนผู้สมัคร'},
     {k:'jobs',       icon:'💼', l:'ตำแหน่งงานที่เปิดรับ'},
     {k:'appts',      icon:'📅', l:'ตารางนัดหมาย'},
@@ -1561,6 +1587,7 @@ function hrShell(content){
     + '<main style="flex:1;min-width:0">'+content+'</main></div>';
 }
 function viewDashboard(){
+  if(hrMenu==='dashboard') return hrShell(viewOverview());
   if(hrMenu==='jobs') return hrShell(viewJobsAdmin());
   if(hrMenu==='appts') return hrShell(viewAppointments());
   if(hrMenu==='reports') return hrShell(viewReports());
@@ -1570,7 +1597,89 @@ function viewDashboard(){
     if(!canOnboard){ hrMenu='applicants'; return hrShell(viewApplicants()); }
     return hrShell(viewOnboardMenu());
   }
-  return hrShell(viewApplicants());
+  if(hrMenu==='applicants') return hrShell(viewApplicants());
+  return hrShell(viewOverview());
+}
+// ── ภาพรวม Dashboard ──
+function viewOverview(){
+  var today = new Date().toISOString().slice(0,10);
+  var thisMonth = today.slice(0,7);
+  var total = records.length;
+  var byStatus = {};
+  (settings.stages||['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน']).forEach(function(s){ byStatus[s]=0; });
+  records.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
+  var newCount = byStatus['ใหม่']||0;
+  var passed = byStatus['ผ่าน']||0;
+  // นัดหมายที่จะถึง
+  var upcomingAppts = collectAppts_().filter(function(x){return x.appt.date>=today;});
+  // เริ่มงานเดือนนี้
+  var startingThisMonth = records.filter(function(r){ var s=((r.appts||{}).start||{}).date; return s && s.slice(0,7)===thisMonth; }).length;
+  // อบรมค้าง (มีคนผ่านแต่ training ยังไม่ครบ)
+  var mods=(settings.trainModules||[]);
+  var trainPending = records.filter(function(r){
+    if(r.status!=='ผ่าน'||!mods.length) return false;
+    var tr=(r.onboard||{}).training||{};
+    var done=mods.filter(function(m){var st=(tr[m.key]||{}).status;return st==='passed'||st==='skipped';}).length;
+    return done<mods.length;
+  }).length;
+  // เอกสารรอ (TigerSoft ยังไม่ครบ ในกลุ่มผ่าน)
+  var tigerPending = records.filter(function(r){
+    if(r.status!=='ผ่าน') return false;
+    var t=(r.onboard||{}).tiger||{}; var d=r.data||{};
+    return !(t.company&&t.empid&&d.sex&&d.marital&&t.salarytype);
+  }).length;
+  var card=function(icon,label,value,color,menu){
+    return '<div class="stat-card" '+(menu?'onclick="hrMenu=\''+menu+'\';apptView=null;render()" style="cursor:pointer"':'')+'>'
+      + '<div class="stat-ico" style="background:'+color+'22;color:'+color+'">'+icon+'</div>'
+      + '<div><div class="stat-num">'+value+'</div><div class="stat-lbl">'+label+'</div></div></div>';
+  };
+  var openJobs = jobs.filter(function(j){return j.status==='เปิดรับ';}).length;
+  // การ์ดสถิติหลัก
+  var cards = '<div class="stat-grid">'
+    + card('📋','ผู้สมัครทั้งหมด',total,'#1a4f8a','applicants')
+    + card('🆕','ใบสมัครใหม่รอคัดกรอง',newCount,'#2c7a7b','applicants')
+    + card('📅','นัดหมายที่จะถึง',upcomingAppts.length,'#8e44ad','appts')
+    + card('✅','ผ่านการคัดเลือก',passed,'#1a9a5a','applicants')
+    + card('🎯','เริ่มงานเดือนนี้',startingThisMonth,'#c8851a','onboard')
+    + card('💼','ตำแหน่งเปิดรับ',openJobs,'#16407a','jobs')
+    + '</div>';
+  // สิ่งที่ต้องทำ (action items)
+  var todos = [];
+  if(newCount>0) todos.push({icon:'🆕',text:'มีใบสมัครใหม่ '+newCount+' ใบ รอคัดกรอง',menu:'applicants',color:'#2c7a7b'});
+  if(upcomingAppts.filter(function(x){return !x.appt.notified;}).length>0) todos.push({icon:'✉',text:'มีนัดหมาย '+upcomingAppts.filter(function(x){return !x.appt.notified;}).length+' รายการ ยังไม่ได้แจ้งผู้สมัคร',menu:'appts',color:'#8e44ad'});
+  if(trainPending>0) todos.push({icon:'📚',text:'มีพนักงาน '+trainPending+' คน อบรมยังไม่ครบ',menu:'onboard',color:'#b06d10'});
+  if(tigerPending>0) todos.push({icon:'🐯',text:'มีพนักงาน '+tigerPending+' คน ข้อมูล TigerSoft ยังไม่ครบ',menu:'onboard',color:'#c0392b'});
+  var todoBox = todos.length
+    ? '<div class="dash-section"><div class="dash-head">⚡ สิ่งที่ต้องดำเนินการ</div>'
+      + todos.map(function(t){return '<div class="todo-item" onclick="hrMenu=\''+t.menu+'\';render()"><span class="todo-ico" style="color:'+t.color+'">'+t.icon+'</span><span>'+t.text+'</span><span class="todo-arr">›</span></div>';}).join('')
+      + '</div>'
+    : '<div class="dash-section"><div class="dash-head">⚡ สิ่งที่ต้องดำเนินการ</div><div style="padding:16px;text-align:center;color:var(--muted);font-size:14px">✓ ไม่มีงานค้าง ทุกอย่างเรียบร้อย</div></div>';
+  // นัดหมายเร็วๆ นี้ (5 รายการแรก)
+  var upSort = upcomingAppts.sort(function(a,b){return (a.appt.date+(a.appt.time||''))<(b.appt.date+(b.appt.time||''))?-1:1;}).slice(0,5);
+  var apptBox = '<div class="dash-section"><div class="dash-head">📅 นัดหมายที่จะถึง'+(upcomingAppts.length>5?' (5 จาก '+upcomingAppts.length+')':'')+'</div>'
+    + (upSort.length ? upSort.map(function(x){var d=x.rec.data||{};
+        return '<div class="todo-item" onclick="openDetail(\''+x.rec.id+'\')"><span class="todo-ico">'+x.type.icon+'</span>'
+          + '<span><b>'+dateTH(x.appt.date)+'</b>'+(x.appt.time?' '+esc(x.appt.time)+' น.':'')+' — '+esc(d.firstName)+' '+esc(d.lastName)+'<br><span style="font-size:12px;color:var(--muted)">'+esc(x.type.l)+' · '+esc(d.pos1||'')+'</span></span>'
+          + '<span class="todo-arr">›</span></div>';
+      }).join('') : '<div style="padding:16px;text-align:center;color:var(--muted);font-size:14px">ไม่มีนัดหมายที่จะถึง</div>')
+    + '</div>';
+  // สถานะผู้สมัคร (แท่ง)
+  var statusBar = '<div class="dash-section"><div class="dash-head">📊 ผู้สมัครตามสถานะ</div><div style="padding:4px 2px">'
+    + (settings.stages||[]).map(function(s){
+        var n=byStatus[s]||0; var pct=total?Math.round(n/total*100):0;
+        return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>'+esc(s)+'</span><span style="color:var(--muted)">'+n+' คน</span></div>'
+          + '<div style="background:#eef1f5;border-radius:4px;height:8px;overflow:hidden"><div style="background:'+statusColor_(s)+';height:100%;width:'+pct+'%"></div></div></div>';
+      }).join('')
+    + '</div></div>';
+  return '<div class="toolbar"><h2 style="font-size:17px;color:var(--primary)">📊 ภาพรวมระบบ</h2>'
+    + '<div style="margin-left:auto;font-size:12px;color:var(--muted)">ข้อมูล ณ '+dateTH(today)+'</div></div>'
+    + cards
+    + '<div class="dash-grid">'+todoBox+apptBox+'</div>'
+    + statusBar;
+}
+function statusColor_(s){
+  var m={'ใหม่':'#2c7a7b','คัดกรอง':'#8e44ad','นัดสัมภาษณ์':'#c8851a','ผ่าน':'#1a9a5a','ไม่ผ่าน':'#c0392b'};
+  return m[s]||'#1a4f8a';
 }
 function lastScreener(r){
   var lg = r.log||[];
@@ -2491,36 +2600,71 @@ function buildOnboardingSection(r){
   if(r.status!=='ผ่าน') return '';
   var ob = r.onboard || {};
   var uni = ob.uniform || {};
-  var checklist = ob.checklist || DEFAULT_CHECKLIST.map(function(t){ return {task:t, done:false}; });
+  // checklist: รองรับทั้งรูปแบบเก่า (string) และใหม่ (object {key,task,done,by,at})
+  var checklist = ob.checklist;
+  if(!checklist || !checklist.length){
+    checklist = DEFAULT_CHECKLIST.map(function(t){ return {key:t.key, task:t.task, done:false}; });
+  } else {
+    checklist = checklist.map(function(c){ return (typeof c==='string') ? {task:c, done:false} : c; });
+  }
   var doneCount = checklist.filter(function(c){return c.done;}).length;
-  // ยูนิฟอร์ม
+  // ── ยูนิฟอร์ม ──
   var shirtOpts = '<option value="">—</option>'+SHIRT_SIZES.map(function(s){return '<option'+(uni.shirt===s?' selected':'')+'>'+s+'</option>';}).join('');
   var pantOpts = '<option value="">—</option>'+SHIRT_SIZES.map(function(s){return '<option'+(uni.pant===s?' selected':'')+'>'+s+'</option>';}).join('');
   var uniformBox = '<div style="background:#fafbfd;border:1px solid var(--border);border-radius:8px;padding:14px">'
-    + '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:10px">👕 ไซส์ยูนิฟอร์ม</div>'
+    + '<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:10px">👕 ไซส์เครื่องแบบ</div>'
     + '<div class="form-grid g2" style="gap:10px">'
     + '<div class="form-group"><label><span class="th">เสื้อ</span></label><select id="uni_shirt">'+shirtOpts+'</select></div>'
     + '<div class="form-group"><label><span class="th">กางเกง</span></label><select id="uni_pant">'+pantOpts+'</select></div></div>'
-    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
-    + '<div class="form-group"><label><span class="th">รองเท้า (เบอร์)</span></label><input id="uni_shoe" value="'+val(uni.shoe)+'" placeholder="เช่น 42" inputmode="numeric"></div>'
-    + '<div class="form-group"><label><span class="th">หมายเหตุ</span></label><input id="uni_note" value="'+val(uni.note)+'" placeholder="เช่น ต้องการไซส์พิเศษ"></div></div>'
-    + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveUniform()">บันทึกไซส์ยูนิฟอร์ม</button></div>';
-  // checklist ปฐมนิเทศ
+    + '<div class="form-group" style="margin-top:6px"><label><span class="th">หมายเหตุ</span></label><input id="uni_note" value="'+val(uni.note)+'" placeholder="เช่น ต้องการไซส์พิเศษ"></div>'
+    + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveUniform()">บันทึกไซส์เครื่องแบบ</button></div>';
+  // ── อุปกรณ์ Safety ──
+  var safety = ob.safety || {};
+  var safetyRows = SAFETY_ITEMS.map(function(it){
+    var s = safety[it.key] || {};
+    return '<tr><td style="padding:6px 4px"><label class="chk-inline"><input type="checkbox" id="sf_'+it.key+'_done" '+(s.done?'checked':'')+'> '+esc(it.label)+'</label></td>'
+      + '<td style="padding:6px 4px;width:110px">'+(it.unit?'<input id="sf_'+it.key+'_size" value="'+val(s.size)+'" placeholder="'+it.unit+'" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 8px">':'<span style="color:var(--muted);font-size:11px">—</span>')+'</td></tr>';
+  }).join('');
+  var safetyDone = SAFETY_ITEMS.filter(function(it){return (safety[it.key]||{}).done;}).length;
+  var safetyBox = '<div style="background:#fff7ed;border:1px solid #f0c896;border-radius:8px;padding:14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="font-size:13px;font-weight:600;color:#b06d10">🦺 อุปกรณ์ Safety (PPE)</div>'
+    + '<span style="font-size:12px;color:'+(safetyDone===SAFETY_ITEMS.length?'var(--success)':'var(--muted)')+'">เบิกแล้ว '+safetyDone+'/'+SAFETY_ITEMS.length+'</span></div>'
+    + '<table style="width:100%;border-collapse:collapse"><tbody>'+safetyRows+'</tbody></table>'
+    + '<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="saveSafety(\''+r.id+'\')">บันทึกการเบิกอุปกรณ์</button></div>';
+  // ── checklist วันแรก ──
   var items = checklist.map(function(c,i){
     return '<label class="chk-row"><input type="checkbox" '+(c.done?'checked':'')+' onchange="toggleChecklist('+i+')">'
       + '<span style="'+(c.done?'text-decoration:line-through;color:var(--muted)':'')+'">'+esc(c.task)+'</span>'
       + (c.done&&c.by?'<span class="chk-by">✓ '+esc(c.by)+(c.at?' · '+dateTH(c.at):'')+'</span>':'')
       + '</label>';
   }).join('');
-  var checklistBox = '<div style="background:#fafbfd;border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:10px">'
+  var checklistBox = '<div style="background:#fafbfd;border:1px solid var(--border);border-radius:8px;padding:14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:600;color:var(--primary)">✅ Checklist ปฐมนิเทศวันแรก</div>'
+    + '<div style="font-size:13px;font-weight:600;color:var(--primary)">✅ Checklist วันแรก</div>'
     + '<span style="font-size:12px;color:'+(doneCount===checklist.length?'var(--success)':'var(--muted)')+'">'+doneCount+'/'+checklist.length+' เสร็จ'+(doneCount===checklist.length?' ✓':'')+'</span></div>'
     + items
     + '<div style="display:flex;gap:6px;margin-top:10px"><input id="newChkTask" placeholder="เพิ่มรายการใหม่..." style="flex:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-family:inherit" onkeydown="if(event.key===\'Enter\')addChecklistItem()">'
     + '<button class="btn btn-sm" onclick="addChecklistItem()">+ เพิ่ม</button></div></div>';
-  return '<div class="section-label" style="margin-top:14px">🎯 การเริ่มงาน (Onboarding)</div>'
-    + '<div class="onboard-grid">'+uniformBox+checklistBox+'</div>';
+  return '<div class="section-label" style="margin-top:14px">🎯 การเริ่มงานวันแรก (Onboarding)</div>'
+    + '<div class="onboard-grid">'+checklistBox+uniformBox+'</div>'
+    + '<div style="margin-top:10px">'+safetyBox+'</div>';
+}
+function saveSafety(id){
+  var rec = currentRec && currentRec.id===id ? currentRec : records.filter(function(x){return x.id===id;})[0];
+  if(!rec) return;
+  rec.onboard = rec.onboard || {};
+  var safety = {};
+  SAFETY_ITEMS.forEach(function(it){
+    safety[it.key] = { done: !!($('sf_'+it.key+'_done')||{}).checked, size: ($('sf_'+it.key+'_size')||{}).value||'' };
+  });
+  rec.onboard.safety = safety;
+  var entry = logEntry('บันทึกการเบิกอุปกรณ์ Safety');
+  apiUpdate(rec.id, {onboard:rec.onboard, logEntry:entry}).then(function(){
+    rec.log=rec.log||[]; rec.log.push(entry);
+    records.forEach(function(x){ if(x.id===rec.id) x.onboard=rec.onboard; });
+    toast('บันทึกการเบิกอุปกรณ์แล้ว'); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
 // กล่องข้อมูลสำหรับส่งออก TigerSoft (ฟิลด์ที่ ATS ไม่มี ให้ HR เติมตอนรับเข้าทำงาน)
 // ── เมนู Onboarding แยก (เฉพาะผู้มีสิทธิ์ — มีข้อมูลเงินเดือน) ──
@@ -2539,6 +2683,7 @@ function viewOnboardMenu(){
       + '<dt>เลขบัตรประชาชน</dt><dd>'+esc(d.idCard||'-')+'</dd>'
       + '<dt>วันเริ่มงาน</dt><dd>'+(((r.appts||{}).start||{}).date?dateTH(r.appts.start.date):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</dd>'
       + '</dl></div>'
+      + buildOnboardingSection(r)
       + buildTrainingSection(r)
       + buildTigerSoftBox(r);
   }
@@ -2806,7 +2951,6 @@ function saveUniform(){
   currentRec.onboard.uniform = {
     shirt: ($('uni_shirt')||{}).value || '',
     pant: ($('uni_pant')||{}).value || '',
-    shoe: ($('uni_shoe')||{}).value || '',
     note: ($('uni_note')||{}).value || ''
   };
   var entry = logEntry('บันทึกไซส์ยูนิฟอร์ม');
@@ -2818,7 +2962,10 @@ function saveUniform(){
 }
 function curChecklist(){
   var ob = currentRec.onboard || {};
-  return ob.checklist || DEFAULT_CHECKLIST.map(function(t){ return {task:t, done:false}; });
+  if(ob.checklist && ob.checklist.length){
+    return ob.checklist.map(function(c){ return (typeof c==='string')?{task:c,done:false}:c; });
+  }
+  return DEFAULT_CHECKLIST.map(function(t){ return {key:t.key, task:t.task, done:false}; });
 }
 function toggleChecklist(i){
   if(!currentRec) return;
@@ -2974,10 +3121,12 @@ function buildPrintDoc(rec){
     + '<tr><td>3. '+esc(d.pos3)+'</td></tr></table>'
     + '<div class="pp-sec">ข้อมูลส่วนตัว Personal Information</div>'
     + '<table>'
-    + '<tr><td class="lb" style="width:20%">ชื่อ - นามสกุล<br>Name - Surname</td><td style="width:40%">'+esc(d.firstName)+' '+esc(d.lastName)+'</td>'
+    + '<tr><td class="lb" style="width:20%">ชื่อ - นามสกุล<br>Name - Surname</td><td style="width:40%">'+esc(d.prefix||'')+' '+esc(d.firstName)+' '+esc(d.lastName)+(d.firstNameEn||d.lastNameEn?'<br><span class="sm" style="color:#555">'+esc(d.firstNameEn||'')+' '+esc(d.lastNameEn||'')+'</span>':'')+'</td>'
     + '<td class="lb" style="width:18%">วัน เดือน ปี เกิด<br>Date of Birth</td><td>'+dateTH(d.dob)+'</td></tr>'
-    + '<tr><td class="lb">ที่อยู่ตามทะเบียนบ้าน<br>House Registration Address</td><td colspan="3">'+esc(d.houseAddr)+'</td></tr>'
-    + '<tr><td class="lb">ที่อยู่ปัจจุบัน<br>Present Address</td><td colspan="3">'+(esc(d.presentAddr)||'ตามที่อยู่ทะเบียนบ้าน / Same as above')+'</td></tr>'
+    + '<tr><td class="lb">เพศ Sex</td><td>'+esc(d.sex||'-')+'</td><td class="lb">สถานภาพ Marital Status</td><td>'+esc(d.marital||'-')+'</td></tr>'
+    + '<tr><td class="lb">สัญชาติ Nationality</td><td>'+esc(d.nationality||'-')+'</td><td class="lb">ศาสนา Religion</td><td>'+esc(d.religion||'-')+'</td></tr>'
+    + '<tr><td class="lb">ที่อยู่ตามทะเบียนบ้าน<br>House Registration Address</td><td colspan="3">'+esc(d.houseAddr||addrToText_(d.reAddr))+'</td></tr>'
+    + '<tr><td class="lb">ที่อยู่ปัจจุบัน<br>Present Address</td><td colspan="3">'+(esc(d.presentAddr||(d.prSameAsRe?'':addrToText_(d.prAddr)))||'ตามที่อยู่ทะเบียนบ้าน / Same as above')+'</td></tr>'
     + '<tr><td class="lb">โทรศัพท์ที่สะดวก<br>Telephone</td><td>'+esc(d.phone)+'</td><td class="lb">อีเมล<br>Email Address</td><td>'+esc(d.email)+'</td></tr>'
     + '<tr><td class="lb">เลขประจำตัวประชาชน<br>ID Card Number</td><td>'+esc(d.idCard)+'</td><td class="lb">วันหมดอายุ Expired Date</td><td>'+dateTH(d.idExpiry)+'&nbsp;&nbsp;&nbsp;<b>Line ID:</b> '+esc(d.lineId)+'</td></tr>'
     + '</table>'
