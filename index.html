@@ -139,12 +139,17 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .home-hero{background:linear-gradient(120deg,var(--primary) 0%,#2a6cb5 100%);color:#fff;border-radius:10px;padding:34px 28px;margin-bottom:22px;box-shadow:var(--shadow)}
 .home-hero h1{font-size:24px;font-weight:700;margin-bottom:8px}
 .home-hero p{font-size:13px;opacity:.9;line-height:1.7}
-.job-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.job-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s}
-.job-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.job-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch}
+@media(max-width:900px){.job-grid{grid-template-columns:repeat(2,1fr)}}
+.job-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,border-color .12s;display:flex;flex-direction:column;height:100%;cursor:pointer}
+.job-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12);border-left-color:var(--primary)}
 .job-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:6px}
 .job-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);margin-bottom:6px}
-.job-qual{font-size:12px;color:var(--text);background:var(--bg);border-radius:5px;padding:7px 10px;line-height:1.6}
+.job-qual{font-size:12px;color:var(--text);background:var(--bg);border-radius:5px;padding:7px 10px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.job-card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:12px}
+.job-detail-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text);margin:6px 0 14px}
+.job-detail-meta span{display:inline-flex;align-items:center;gap:5px}
+.job-detail-qual{font-size:13.5px;color:var(--text);background:var(--bg);border-radius:8px;padding:14px 16px;line-height:1.75;white-space:pre-wrap}
 /* HR sidebar layout */
 .hr-layout{display:flex;gap:18px;align-items:flex-start}
 .sidebar{width:210px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:420px;position:sticky;top:74px}
@@ -398,6 +403,7 @@ var photoDataURL = null;
 var records = [];
 var jobs = [];
 var editingJob = null;
+var jobDetailId = null;        // id ของตำแหน่งที่กำลังเปิดดูรายละเอียด (หน้าประกาศ)
 var hrAuthed = false;
 var currentRec = null;
 var filterStatus = '';
@@ -1501,10 +1507,40 @@ function deleteJob(id){
   }).catch(function(err){ alert('ลบไม่สำเร็จ: '+err.message); });
 }
 function applyJob(title){
+  jobDetailId = null;
   F = blankF(); photoDataURL=null; cur=0;
   otpState = { sent:false, verified:false, sending:false, email:'' };
   F.pos1 = title || '';
   view='apply'; render(); window.scrollTo(0,0);
+}
+// ─── รายละเอียดตำแหน่งงาน (โมดัลหน้าประกาศ) ───────────────────────────
+function openJobDetail(id){ jobDetailId = id; render(); }
+function closeJobDetail(){ jobDetailId = null; render(); }
+function jobDetailModalHtml(){
+  if(!jobDetailId) return '';
+  var j = jobs.filter(function(x){return x.id===jobDetailId;})[0];
+  if(!j){ return ''; }
+  var titleJs = esc(j.title).replace(/'/g,'&#39;');
+  return '<div class="modal-overlay" onclick="if(event.target===this)closeJobDetail()">'
+    + '<div class="modal-box" style="max-width:560px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px">'
+    + '<h2 style="font-size:19px;color:var(--primary);line-height:1.35">'+esc(j.title)+'</h2>'
+    + '<button class="btn btn-sm" style="flex-shrink:0;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)" onclick="closeJobDetail()" title="ปิด">×</button>'
+    + '</div>'
+    + '<div class="job-detail-meta">'
+    + (j.dept?'<span>🏢 '+esc(j.dept)+'</span>':'')
+    + '<span>📍 '+esc(j.location||'Chatree Gold Mine')+'</span>'
+    + '<span>👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
+    + '<span>📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
+    + '</div>'
+    + (j.qual
+        ? '<div class="section-label" style="font-size:12px;margin-bottom:6px">คุณสมบัติ / รายละเอียด</div><div class="job-detail-qual">'+esc(j.qual)+'</div>'
+        : '<div style="font-size:13px;color:var(--muted)">— ไม่ได้ระบุรายละเอียดเพิ่มเติม —</div>')
+    + '<div style="font-size:11.5px;color:var(--muted);margin-top:14px">ประกาศเมื่อ '+dateTH(j.posted)+'</div>'
+    + '<div style="display:flex;gap:10px;margin-top:20px">'
+    + '<button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeJobDetail()">ปิด</button>'
+    + '<button class="btn btn-primary" style="flex:2;justify-content:center" onclick="applyJob(\''+titleJs+'\')">สมัครตำแหน่งนี้ →</button>'
+    + '</div></div></div>';
 }
 // ─── Toast ───────────────────────────────────────────────────────────
 function toast(msg){
@@ -1532,7 +1568,7 @@ function viewLogin(){
 function viewHome(){
   var open = jobs.filter(function(j){ return j.status==='เปิดรับ'; });
   var cards = open.map(function(j){
-    return '<div class="job-card">'
+    return '<div class="job-card" onclick="openJobDetail(\''+esc(j.id)+'\')">'
       + '<div class="job-title">'+esc(j.title)+'</div>'
       + '<div class="job-meta">'
       + (j.dept?'<span>🏢 '+esc(j.dept)+'</span>':'')
@@ -1541,9 +1577,9 @@ function viewHome(){
       + '<span>📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
       + '</div>'
       + (j.qual?'<div class="job-qual">'+esc(j.qual)+'</div>':'')
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">'
+      + '<div class="job-card-foot">'
       + '<span style="font-size:11px;color:var(--muted)">ประกาศ '+dateTH(j.posted)+'</span>'
-      + '<button class="btn btn-primary btn-sm" onclick="applyJob(\''+esc(j.title).replace(/'/g,'&#39;')+'\')">สมัครตำแหน่งนี้ →</button>'
+      + '<span style="font-size:12px;color:var(--primary);font-weight:600;white-space:nowrap">ดูรายละเอียด →</span>'
       + '</div></div>';
   }).join('');
   var jobsSection = open.length
@@ -3427,7 +3463,7 @@ function render(){
   if(tag) tag.innerHTML = inHR ? '<span class="mode-tag" style="background:#fff;border-color:#fff">HR: '+esc((session&&session.name)||'')+'</span>' : '';
   if(hl) hl.textContent = (inHR||view==='login') ? '← หน้าประกาศรับสมัคร' : 'สำหรับเจ้าหน้าที่ HR';
 
-  if(view==='home'){ c.innerHTML = viewHome(); return; }
+  if(view==='home'){ c.innerHTML = viewHome() + jobDetailModalHtml(); return; }
   if(view==='login'){ c.innerHTML = viewLogin(); var p=$('hrPass'); if(p)p.focus(); return; }
   if(view==='dashboard'){ c.innerHTML = viewDashboard(); return; }
   if(view==='detail'){ c.innerHTML = viewDetail(); return; }
