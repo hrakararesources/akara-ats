@@ -136,19 +136,34 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .empty-state{text-align:center;padding:48px;color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:var(--radius)}
 .login-box{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:32px;box-shadow:var(--shadow);text-align:center}
 /* Home: job board */
-.home-hero{background:linear-gradient(120deg,var(--primary) 0%,#2a6cb5 100%);color:#fff;border-radius:10px;padding:34px 28px;margin-bottom:22px;box-shadow:var(--shadow)}
-.home-hero h1{font-size:24px;font-weight:700;margin-bottom:8px}
-.home-hero p{font-size:13px;opacity:.9;line-height:1.7}
-.job-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch}
+.home-hero{position:relative;overflow:hidden;background:linear-gradient(120deg,#123e6f 0%,var(--primary) 45%,#2a6cb5 100%);color:#fff;border-radius:14px;padding:38px 32px;margin-bottom:24px;box-shadow:0 8px 24px rgba(26,79,138,.22)}
+.home-hero::before{content:'';position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(200,168,75,.35),transparent 70%)}
+.home-hero::after{content:'';position:absolute;bottom:-70px;right:80px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
+.home-hero>*{position:relative;z-index:1}
+.home-hero .hero-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.5px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:5px 13px;border-radius:99px;margin-bottom:14px}
+.home-hero h1{font-size:26px;font-weight:700;margin-bottom:10px;line-height:1.3}
+.home-hero p{font-size:13px;opacity:.92;line-height:1.7;max-width:640px}
+.jobs-head{display:flex;align-items:center;gap:12px;margin:26px 0 14px}
+.jobs-head .bar{width:4px;height:22px;border-radius:2px;background:linear-gradient(var(--primary),var(--accent))}
+.jobs-head h2{font-size:18px;font-weight:700;color:var(--text)}
+.jobs-head .count{font-size:12px;font-weight:700;color:var(--primary);background:var(--primary-light);padding:3px 12px;border-radius:99px}
+.job-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
 @media(max-width:900px){.job-grid{grid-template-columns:repeat(2,1fr)}}
-.job-card{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,border-color .12s;display:flex;flex-direction:column;height:100%;cursor:pointer}
-.job-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12);border-left-color:var(--primary)}
-.job-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:6px}
-.job-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);margin-bottom:6px}
-.job-qual{font-size:12px;color:var(--text);background:var(--bg);border-radius:5px;padding:7px 10px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.job-card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:12px}
-.job-detail-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text);margin:6px 0 14px}
-.job-detail-meta span{display:inline-flex;align-items:center;gap:5px}
+.job-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 18px 15px;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s,border-color .15s;display:flex;flex-direction:column;height:100%;cursor:pointer;overflow:hidden}
+.job-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--primary),var(--accent));transform:scaleX(0);transform-origin:left;transition:transform .22s}
+.job-card:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(26,79,138,.17);border-color:var(--primary-light)}
+.job-card:hover::before{transform:scaleX(1)}
+.job-cat{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-light);padding:4px 11px;border-radius:99px;margin-bottom:11px}
+.job-title{font-size:15.5px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:44px;transition:color .15s}
+.job-card:hover .job-title{color:var(--primary)}
+.job-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
+.job-meta .tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 9px}
+.job-qual{font-size:12px;color:var(--muted);line-height:1.65;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.job-card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:12px;border-top:1px solid var(--border)}
+.job-more{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--primary);font-weight:700;white-space:nowrap;transition:gap .15s}
+.job-card:hover .job-more{gap:9px}
+.job-detail-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--text);margin:8px 0 16px}
+.job-detail-meta span{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 11px}
 .job-detail-qual{font-size:13.5px;color:var(--text);background:var(--bg);border-radius:8px;padding:14px 16px;line-height:1.75;white-space:pre-wrap}
 /* HR sidebar layout */
 .hr-layout{display:flex;gap:18px;align-items:flex-start}
@@ -1569,27 +1584,30 @@ function viewHome(){
   var open = jobs.filter(function(j){ return j.status==='เปิดรับ'; });
   var cards = open.map(function(j){
     return '<div class="job-card" onclick="openJobDetail(\''+esc(j.id)+'\')">'
+      + '<span class="job-cat">🏢 '+esc(j.dept||'ตำแหน่งงาน')+'</span>'
       + '<div class="job-title">'+esc(j.title)+'</div>'
       + '<div class="job-meta">'
-      + (j.dept?'<span>🏢 '+esc(j.dept)+'</span>':'')
-      + '<span>📍 '+esc(j.location||'Chatree Gold Mine')+'</span>'
-      + '<span>👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
-      + '<span>📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
+      + '<span class="tag">📍 '+esc(j.location||'Chatree Gold Mine')+'</span>'
+      + '<span class="tag">👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
+      + '<span class="tag">📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
       + '</div>'
       + (j.qual?'<div class="job-qual">'+esc(j.qual)+'</div>':'')
       + '<div class="job-card-foot">'
       + '<span style="font-size:11px;color:var(--muted)">ประกาศ '+dateTH(j.posted)+'</span>'
-      + '<span style="font-size:12px;color:var(--primary);font-weight:600;white-space:nowrap">ดูรายละเอียด →</span>'
+      + '<span class="job-more">ดูรายละเอียด →</span>'
       + '</div></div>';
   }).join('');
   var jobsSection = open.length
     ? '<div class="job-grid">'+cards+'</div>'
     : '<div class="empty-state">ขณะนี้ยังไม่มีประกาศรับสมัครงาน — สามารถยื่นใบสมัครทั่วไปไว้ล่วงหน้าได้</div>';
   return '<div class="home-hero">'
+    + '<span class="hero-badge">✦ ร่วมเป็นส่วนหนึ่งของทีม</span>'
     + '<h1>ร่วมงานกับ อัครา รีซอร์สเซส</h1>'
-    + '<p>บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) — เหมืองแร่ทองคำชาตรี จ.พิจิตร<br>เปิดรับสมัครบุคลากรร่วมเป็นส่วนหนึ่งของทีม</p>'
+    + '<p>บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน) — เหมืองแร่ทองคำชาตรี จ.พิจิตร<br>เปิดรับสมัครบุคลากรที่มีความมุ่งมั่นร่วมเติบโตไปด้วยกัน</p>'
     + '</div>'
-    + '<div class="section-label" style="font-size:13px">ตำแหน่งงานที่เปิดรับ <span style="font-weight:400;color:var(--muted);text-transform:none">('+open.length+' ตำแหน่ง)</span></div>'
+    + '<div class="jobs-head"><span class="bar"></span><h2>ตำแหน่งงานที่เปิดรับ</h2>'
+    + (open.length?'<span class="count">'+open.length+' ตำแหน่ง</span>':'')
+    + '</div>'
     + jobsSection
     + '<div style="text-align:center;margin-top:22px;padding:18px;background:#fff;border:1px dashed var(--border);border-radius:8px">'
     + '<p style="font-size:13px;color:var(--muted);margin-bottom:10px">ไม่พบตำแหน่งที่ต้องการ? ยื่นใบสมัครทั่วไปเก็บไว้ในระบบได้</p>'
