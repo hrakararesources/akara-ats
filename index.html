@@ -448,6 +448,9 @@ var DEFAULT_SETTINGS = {
   company:{ name:'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)', site:'Chatree Gold Mine, จ.พิจิตร', hrPhone:'', hrEmail:'' },
   stages:['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'],
   hospitals:[],
+  orgDepartments:[],   // ตัวเลือก Department (คอลัมน์ K ไฟล์ TigerSoft)
+  orgSections:[],      // ตัวเลือก Section (คอลัมน์ L)
+  orgDivisions:[],     // ตัวเลือก Division (คอลัมน์ M)
   emailTemplates:{
     interview:{subject:'แจ้งนัดหมายสัมภาษณ์งาน — {company}', body:''},
     health:{subject:'แจ้งนัดตรวจสุขภาพก่อนเริ่มงาน — {company}', body:''},
@@ -1385,7 +1388,7 @@ function saveAppt(typeKey){
       if(suggested){
         currentRec.onboard.tiger.empid = suggested.id;
         currentRec.onboard.tiger.company = currentRec.onboard.tiger.company||'AKR';
-        if(!currentRec.onboard.tiger.cardid) currentRec.onboard.tiger.cardid = suggested.id;
+        // รหัสบัตรรูด (cardid) เว้นว่างไว้ — ให้ HR กรอกรหัสบัตรตอกบัตรจริงเอง ไม่ใช้รหัสพนักงานแทน
         bumpEmpSeq_(suggested.seq);   // อัปเดตเลขลำดับล่าสุด
         genEmpNote = ' · สร้างรหัสพนักงาน '+suggested.id;
       }
@@ -1445,7 +1448,7 @@ function genEmpIdFor(id){
   r.onboard = r.onboard || {}; r.onboard.tiger = r.onboard.tiger || {};
   r.onboard.tiger.empid = input;
   r.onboard.tiger.company = r.onboard.tiger.company||'AKR';
-  if(!r.onboard.tiger.cardid) r.onboard.tiger.cardid = input;
+  // รหัสบัตรรูด (cardid) เว้นว่างไว้ — ให้ HR กรอกรหัสบัตรตอกบัตรจริงเอง
   // ถ้า HR ใช้รหัสที่ระบบเสนอ → อัปเดตลำดับ; ถ้าแก้เอง → ดึงเลขท้าย 4 หลักมาอัปเดต
   var tail = input.match(/(\d{4})$/);
   if(tail){ bumpEmpSeq_(parseInt(tail[1],10)); }
@@ -2241,15 +2244,17 @@ function exportTigerSoft(){
     function set(name,v){ var i=FIELD_NAMES.indexOf(name); if(i>0) row[i]=(v===undefined||v===null)?'':v; }
     set('ID_Company', t.company);
     set('ID_Emp', t.empid);
-    set('ID_Card', t.cardid||t.empid);
+    set('ID_Card', t.cardid||'');                // รหัสบัตรรูด — เว้นว่างถ้ายังไม่กรอก (ไม่ใช้รหัสพนักงานแทน)
     set('NT', d.prefix||'');
     set('NameT', d.firstName);
     set('SurnameT', d.lastName);
     set('NameE', d.firstNameEn||'');
     set('SurnameE', d.lastNameEn||'');
     set('Sex', d.sex||'');                       // จากผู้สมัคร
-    set('Section', deptOf(d.pos1)||'');          // ฝ่าย
-    set('Department', t.department||'');          // ส่วน (HR)
+    // ตำแหน่งคอลัมน์ตามที่ HR กำหนดสำหรับนำเข้า TigerSoft: K=Department, L=Section, M=Division
+    row[10] = t.department || deptOf(d.pos1) || '';  // คอลัมน์ K = Department (ถ้าไม่ได้เลือก ใช้แผนกจากตำแหน่ง)
+    row[11] = t.section || '';                        // คอลัมน์ L = Section
+    row[12] = t.division || '';                       // คอลัมน์ M = Division
     set('Position', d.pos1);
     set('Level', t.level||'');
     set('Type_Salary', t.salarytype);
@@ -2428,6 +2433,13 @@ function settingsCompany(){
     + '<div class="form-group"><label><span class="th">เลขลำดับพนักงานล่าสุด</span> <span class="en">เลขท้าย 4 หลักของรหัสล่าสุด</span></label><input type="number" value="'+val(c.lastEmpSeq||1363)+'" oninput="settings.company.lastEmpSeq=parseInt(this.value,10)||0" placeholder="1363"></div>'
     + '</div>'
     + '<div style="font-size:11px;color:#b06d10;margin-top:4px">⚠ ปรับเลขนี้ให้ตรงกับรหัสล่าสุดใน TigerSoft จริง คนถัดไปจะได้เลขนี้ +1 (ปัจจุบันคนถัดไป = '+((parseInt(c.lastEmpSeq||1363,10))+1)+')</div>'
+    + '<div class="section-label" style="margin-top:14px">🏢 ตัวเลือก Department / Section / Division (สำหรับไฟล์ TigerSoft)</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">พิมพ์ตัวเลือก <b>บรรทัดละ 1 รายการ</b> — จะแสดงเป็น dropdown ให้เลือกในกล่องข้อมูล TigerSoft ของพนักงานแต่ละคน (Department→คอลัมน์ K, Section→คอลัมน์ L, Division→คอลัมน์ M)</div>'
+    + '<div class="form-grid g3">'
+    + '<div class="form-group"><label><span class="th">Department (คอลัมน์ K)</span></label><textarea rows="5" style="min-height:90px;line-height:1.6;font-family:inherit" placeholder="1 บรรทัด = 1 ตัวเลือก" oninput="settings.orgDepartments=this.value.split(String.fromCharCode(10)).map(function(s){return s.trim();}).filter(Boolean)">'+val((settings.orgDepartments||[]).join('\n'))+'</textarea></div>'
+    + '<div class="form-group"><label><span class="th">Section (คอลัมน์ L)</span></label><textarea rows="5" style="min-height:90px;line-height:1.6;font-family:inherit" placeholder="1 บรรทัด = 1 ตัวเลือก" oninput="settings.orgSections=this.value.split(String.fromCharCode(10)).map(function(s){return s.trim();}).filter(Boolean)">'+val((settings.orgSections||[]).join('\n'))+'</textarea></div>'
+    + '<div class="form-group"><label><span class="th">Division (คอลัมน์ M)</span></label><textarea rows="5" style="min-height:90px;line-height:1.6;font-family:inherit" placeholder="1 บรรทัด = 1 ตัวเลือก" oninput="settings.orgDivisions=this.value.split(String.fromCharCode(10)).map(function(s){return s.trim();}).filter(Boolean)">'+val((settings.orgDivisions||[]).join('\n'))+'</textarea></div>'
+    + '</div>'
     + '</div>'
     + '<div style="margin-top:14px"><button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button></div></div>';
 }
@@ -2930,6 +2942,12 @@ function buildTigerSoftBox(r){
   var sel=function(id,opts,cur){
     return '<select id="'+id+'"><option value="">— เลือก —</option>'+opts.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
   };
+  // dropdown สำหรับ Department/Section/Division — รายการมาจากเมนูตั้งค่า; ถ้าค่าเดิมไม่อยู่ในรายการ ก็ยังแสดงให้เห็น
+  var orgSel=function(id,list,cur){
+    cur = cur||''; list = (list||[]).slice();
+    if(cur && list.indexOf(cur)<0) list.unshift(cur);
+    return '<select id="'+id+'"><option value="">— เลือก —</option>'+list.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select>';
+  };
   var empid = ts.empid || '';
   var startDate = ((r.appts||{}).start||{}).date;
   var empidBox = empid
@@ -2943,11 +2961,15 @@ function buildTigerSoftBox(r){
     + '<div class="form-grid g3" style="gap:10px">'
     + '<div class="form-group"><label><span class="th">รหัสบริษัท *</span></label><input id="ts_company" value="'+val(ts.company||'AKR')+'" placeholder="AKR"></div>'
     + '<div class="form-group"><label><span class="th">รหัสพนักงาน *</span></label><input id="ts_empid" value="'+val(ts.empid)+'" placeholder="สร้างอัตโนมัติ"></div>'
-    + '<div class="form-group"><label><span class="th">รหัสบัตรรูด</span></label><input id="ts_cardid" value="'+val(ts.cardid||ts.empid)+'" placeholder="รหัสบัตรตอกบัตร"></div></div>'
-    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">รหัสบัตรรูด</span></label><input id="ts_cardid" value="'+val(ts.cardid)+'" placeholder="กรอกรหัสบัตรตอกบัตรจริง (เว้นว่างได้)"></div></div>'
+    + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
     + '<div class="form-group"><label><span class="th">วิธีคิดค่าจ้าง *</span></label>'+sel('ts_salarytype',['รายเดือน (Month)','รายวัน (Day)'],ts.salarytype)+'</div>'
-    + '<div class="form-group"><label><span class="th">ส่วน/แผนก</span></label><input id="ts_department" value="'+val(ts.department)+'" placeholder="ระบุถ้ามี"></div>'
     + '<div class="form-group"><label><span class="th">ระดับพนักงาน</span></label><input id="ts_level" value="'+val(ts.level)+'" placeholder="ระบุถ้ามี"></div></div>'
+    + '<div class="form-grid g3" style="gap:10px;margin-top:6px">'
+    + '<div class="form-group"><label><span class="th">Department <span class="en">(คอลัมน์ K)</span></span></label>'+orgSel('ts_department',(settings.orgDepartments||[]),ts.department||deptOf(d.pos1))+'</div>'
+    + '<div class="form-group"><label><span class="th">Section <span class="en">(คอลัมน์ L)</span></span></label>'+orgSel('ts_section',(settings.orgSections||[]),ts.section)+'</div>'
+    + '<div class="form-group"><label><span class="th">Division <span class="en">(คอลัมน์ M)</span></span></label>'+orgSel('ts_division',(settings.orgDivisions||[]),ts.division)+'</div></div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:2px">จัดการรายการตัวเลือก Department/Section/Division ได้ที่ เมนูตั้งค่า → ข้อมูลบริษัท</div>'
     + '<div class="form-grid g2" style="gap:10px;margin-top:6px">'
     + '<div class="form-group"><label><span class="th">เลขผู้เสียภาษี</span></label><input id="ts_tax" value="'+val(ts.tax||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div>'
     + '<div class="form-group"><label><span class="th">เลขประกันสังคม</span></label><input id="ts_social" value="'+val(ts.social||d.idCard)+'" placeholder="ปกติใช้เลขบัตร ปชช."></div></div>'
@@ -2998,6 +3020,7 @@ function saveTigerFields(){
   currentRec.onboard.tiger = {
     company:($('ts_company')||{}).value||'', empid:($('ts_empid')||{}).value||'', cardid:($('ts_cardid')||{}).value||'',
     salarytype:($('ts_salarytype')||{}).value||'', department:($('ts_department')||{}).value||'',
+    section:($('ts_section')||{}).value||'', division:($('ts_division')||{}).value||'',
     tax:($('ts_tax')||{}).value||'', social:($('ts_social')||{}).value||'',
     hospital:($('ts_hospital')||{}).value||'', level:($('ts_level')||{}).value||'',
     account:($('ts_account')||{}).value||'', bank:($('ts_bank')||{}).value||'',
