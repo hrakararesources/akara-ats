@@ -539,15 +539,28 @@ function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s===undefined||s===null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function val(s){ return (s===undefined||s===null||s==='') ? '' : esc(s); }
 function todayTH(){ return new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'}); }
+// ── กันวันที่ที่ถูกบันทึกเป็นปี พ.ศ. โดยไม่ตั้งใจ ──
+// input type=date บนเครื่อง locale ไทยบางเบราว์เซอร์ เขียนค่าเป็นปี พ.ศ. ตรงๆ (เช่น 2538-05-12)
+// ถ้าไม่ดัก จะถูกบวก 543 ซ้ำตอนแสดงผล กลายเป็นปี 3081
+// ปี ค.ศ. จริงไม่มีทางถึง 2200 ในบริบทนี้ → เกินกว่านั้นถือว่าเป็น พ.ศ. แน่นอน
+function fixBE_(iso){
+  if(!iso) return iso;
+  var s = String(iso);
+  var m = s.match(/^(\d{4})(\D[\s\S]*)?$/);
+  if(!m) return s;
+  var y = parseInt(m[1],10);
+  if(y >= 2200) y -= 543;
+  return y + (m[2]||'');
+}
 function dateTH(iso){
   if(!iso) return '';
-  var d = new Date(iso);
+  var d = new Date(fixBE_(iso));
   if(isNaN(d)) return esc(iso);
   return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+(d.getFullYear()+543);
 }
 function monthTH(ym){
   if(!ym) return '';
-  var p = String(ym).split('-');
+  var p = String(fixBE_(ym)).split('-');
   if(p.length<2) return esc(ym);
   return p[1]+'/'+(parseInt(p[0],10)+543);
 }
@@ -555,13 +568,13 @@ function monthTH(ym){
 // หน้าจอและเอกสารพิมพ์ยังใช้ dateTH / monthTH ซึ่งเป็น พ.ศ. ตามเดิม
 function dateCE(iso){
   if(!iso) return '';
-  var d = new Date(iso);
+  var d = new Date(fixBE_(iso));
   if(isNaN(d)) return String(iso);
   return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
 }
 function monthCE(ym){
   if(!ym) return '';
-  var p = String(ym).split('-');
+  var p = String(fixBE_(ym)).split('-');
   if(p.length<2) return String(ym);
   return p[1]+'/'+p[0];
 }
@@ -1319,6 +1332,9 @@ function submitForm(){
   // สร้างข้อความที่อยู่ (สำหรับแสดงผล/พิมพ์ฟอร์ม + backward-compat)
   F.houseAddr = addrToText_(F.reAddr);
   F.presentAddr = F.prSameAsRe ? '' : addrToText_(F.prAddr);
+  // บางเบราว์เซอร์ locale ไทยเขียนค่า input type=date เป็นปี พ.ศ. → แปลงเป็น ค.ศ. ก่อนบันทึก
+  F.dob = fixBE_(F.dob); F.idExpiry = fixBE_(F.idExpiry);
+  (F.works||[]).forEach(function(w){ w.from = fixBE_(w.from); w.to = fixBE_(w.to); });
   var bn=$('btnNext'); if(bn){bn.disabled=true;bn.textContent='กำลังส่ง...';}
   var record = {
     id:'', ts: new Date().toISOString(), status:'ใหม่', note:'',
@@ -1462,7 +1478,7 @@ function saveAppt(typeKey){
   if(!dEl || !dEl.value){ alert('กรุณาระบุวันที่นัดหมาย'); return; }
   currentRec.appts = currentRec.appts || {};
   var apptData = {
-    date: dEl.value, time: tmEl?tmEl.value:'', place: place, note: ntEl?ntEl.value:'',
+    date: fixBE_(dEl.value), time: tmEl?tmEl.value:'', place: place, note: ntEl?ntEl.value:'',
     by: (session&&session.name)||'-', savedAt: new Date().toISOString(), notified:false
   };
   // ใบส่งตัวตรวจสุขภาพ: เก็บข้อมูลเพิ่มสำหรับยื่นโรงพยาบาล
@@ -1511,7 +1527,7 @@ function saveAppt(typeKey){
 // สร้างรหัสพนักงานถัดไป จากวันเริ่มงาน (ปี ค.ศ. 2 หลัก + เดือน + ลำดับ 4 หลัก)
 function suggestEmpId_(startDate){
   if(!startDate) return null;
-  var d = new Date(startDate);
+  var d = new Date(fixBE_(startDate));
   if(isNaN(d)) return null;
   var prefix = (settings && settings.company && settings.company.empPrefix) || 'AKR';
   var yy = String(d.getFullYear()).slice(-2);          // ค.ศ. 2 หลัก
