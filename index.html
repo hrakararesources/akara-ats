@@ -551,6 +551,20 @@ function monthTH(ym){
   if(p.length<2) return esc(ym);
   return p[1]+'/'+(parseInt(p[0],10)+543);
 }
+// ── รูปแบบวันที่ปี ค.ศ. (ใช้ในไฟล์ Excel และไฟล์นำเข้า TigerSoft) ──
+// หน้าจอและเอกสารพิมพ์ยังใช้ dateTH / monthTH ซึ่งเป็น พ.ศ. ตามเดิม
+function dateCE(iso){
+  if(!iso) return '';
+  var d = new Date(iso);
+  if(isNaN(d)) return String(iso);
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+}
+function monthCE(ym){
+  if(!ym) return '';
+  var p = String(ym).split('-');
+  if(p.length<2) return String(ym);
+  return p[1]+'/'+p[0];
+}
 function milLabel(v){
   var o = MIL_OPTS.filter(function(m){return m.v===v;})[0];
   return o ? o.l : '';
@@ -1943,7 +1957,7 @@ function exportSummaryReport(){
   });
   var rows=[['#','เลขรับ','ชื่อ-สกุล','ตำแหน่ง','แผนก','โทรศัพท์','อีเมล','วันที่สมัคร','สถานะ','ผู้คัดกรอง']];
   list.forEach(function(r,i){ var d=r.data||{};
-    rows.push([i+1,r.id,(d.firstName||'')+' '+(d.lastName||''),d.pos1||'',deptOf(d.pos1)||'',d.phone||'',d.email||'',dateTH(r.ts),r.status,lastScreener(r)]);
+    rows.push([i+1,r.id,(d.firstName||'')+' '+(d.lastName||''),d.pos1||'',deptOf(d.pos1)||'',d.phone||'',d.email||'',dateCE(r.ts),r.status,lastScreener(r)]);
   });
   var ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:5},{wch:15},{wch:24},{wch:20},{wch:18},{wch:14},{wch:24},{wch:13},{wch:12},{wch:14}];
   var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'สรุปผู้สมัคร');
@@ -2296,12 +2310,8 @@ function reportOnboarding(){
     + table + '</div>';
 }
 // ── สร้างไฟล์นำเข้า TigerSoft (125 คอลัมน์ ตรงตามเทมเพลต) ──
-function thDate(iso){
-  if(!iso) return '';
-  var d = new Date(iso); if(isNaN(d)) return '';
-  var dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear()+543;
-  return dd+'/'+mm+'/'+yy;  // dd/MM/yyyy พ.ศ. ตามตัวอย่างเทมเพลต
-}
+// วันที่สำหรับไฟล์นำเข้า TigerSoft — dd/MM/yyyy ปี ค.ศ. (ใช้ตัวเดียวกับ Excel)
+function thDate(iso){ return dateCE(iso); }
 function exportTigerSoft(){
   if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ ลองรีเฟรชหน้า'); return; }
   var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
@@ -3618,9 +3628,9 @@ function exportRegister(){
   var rows = [['เลขรับ','วันที่สมัคร','ชื่อ-นามสกุล','ตำแหน่ง 1','ตำแหน่ง 2','เงินเดือนคาดหวัง','โทรศัพท์','อีเมล','สถานะ','ผู้คัดกรองล่าสุด','นัดสัมภาษณ์','ตรวจสุขภาพ','วันเริ่มงาน','เอกสารแนบ','บันทึก HR']];
   records.forEach(function(r){
     var d=r.data||{}; var a=r.appts||{};
-    var ap=function(k){ return a[k]&&a[k].date ? dateTH(a[k].date)+(a[k].time?' '+a[k].time:'') : ''; };
+    var ap=function(k){ return a[k]&&a[k].date ? dateCE(a[k].date)+(a[k].time?' '+a[k].time:'') : ''; };
     var nd=(d.docs||[]).length;
-    rows.push([r.id, dateTH(r.ts), (d.firstName||'')+' '+(d.lastName||''), d.pos1||'', d.pos2||'', d.salary||'', d.phone||'', d.email||'', r.status||'', lastScreener(r), ap('interview'), ap('health'), ap('start'), nd?nd+' ไฟล์':'', r.note||'']);
+    rows.push([r.id, dateCE(r.ts), (d.firstName||'')+' '+(d.lastName||''), d.pos1||'', d.pos2||'', d.salary||'', d.phone||'', d.email||'', r.status||'', lastScreener(r), ap('interview'), ap('health'), ap('start'), nd?nd+' ไฟล์':'', r.note||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[{wch:15},{wch:12},{wch:25},{wch:20},{wch:20},{wch:14},{wch:14},{wch:26},{wch:12},{wch:14},{wch:16},{wch:16},{wch:16},{wch:10},{wch:30}];
@@ -3633,13 +3643,13 @@ function exportOne(rec){
   var wb = XLSX.utils.book_new();
   var rows = [
     ['แบบฟอร์ม', CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev, 'Effective', CONFIG.DOC.effective],
-    ['เลขรับ', rec.id, 'วันที่สมัคร', dateTH(rec.ts), 'สถานะ', rec.status],
+    ['เลขรับ', rec.id, 'วันที่สมัคร', dateCE(rec.ts), 'สถานะ', rec.status],
     [],
     ['ตำแหน่ง 1', d.pos1, 'ตำแหน่ง 2', d.pos2, 'ตำแหน่ง 3', d.pos3],
     ['เงินเดือนที่คาดหวัง', d.salary],
-    ['ชื่อ-นามสกุล', (d.firstName||'')+' '+(d.lastName||''), 'วันเกิด', dateTH(d.dob)],
+    ['ชื่อ-นามสกุล', (d.firstName||'')+' '+(d.lastName||''), 'วันเกิด', dateCE(d.dob)],
     ['โทร', d.phone, 'อีเมล', d.email, 'Line', d.lineId],
-    ['เลขบัตร', d.idCard, 'หมดอายุ', dateTH(d.idExpiry), 'สถานะทหาร', milLabel(d.military)],
+    ['เลขบัตร', d.idCard, 'หมดอายุ', dateCE(d.idExpiry), 'สถานะทหาร', milLabel(d.military)],
     ['ที่อยู่ทะเบียนบ้าน', d.houseAddr],
     ['ที่อยู่ปัจจุบัน', d.presentAddr],
     [],
@@ -3652,7 +3662,7 @@ function exportOne(rec){
   rows.push([]);
   rows.push(['บริษัท','ตำแหน่ง','เงินเดือน','จาก','ถึง','ลักษณะงาน','สาเหตุลาออก']);
   (d.works||[]).filter(function(w){return w.company;}).forEach(function(w){
-    rows.push([w.company,w.position,w.salary,monthTH(w.from),monthTH(w.to),w.acc,w.reason]);
+    rows.push([w.company,w.position,w.salary,monthCE(w.from),monthCE(w.to),w.acc,w.reason]);
   });
   rows.push([]);
   rows.push(['คอมพิวเตอร์', (d.compSkills||[]).filter(Boolean).join(', ')]);
