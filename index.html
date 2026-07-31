@@ -286,8 +286,11 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .st-fill-ใหม่{background:#2980b9}.st-fill-คัดกรอง{background:#b07d10}.st-fill-นัดสัมภาษณ์{background:#8e44ad}.st-fill-ผ่าน{background:#1a7a4a}.st-fill-ไม่ผ่าน{background:#c0392b}
 .stat-bar-val{width:80px;font-size:12px;text-align:right;flex-shrink:0;color:var(--muted)}
 @media print{
-  .report-print-wrap{padding:10mm}
-  .report-print-wrap .ats-table{font-size:10pt}
+  /* @page margin = 0 (ดูบล็อก print ด้านล่าง) → ระยะขอบของรายงานมาจาก padding นี้ */
+  .report-print-wrap{padding:12mm 12mm 10mm}
+  .report-print-wrap .ats-table{font-size:10pt;width:100%;table-layout:fixed;word-wrap:break-word}
+  .report-print-wrap .ats-table td,.report-print-wrap .ats-table th{padding:3px 5px}
+  .report-print-wrap .ats-table tr{page-break-inside:avoid}
   .report-print-wrap .ats-table th{background:#1a4f8a!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 .settings-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--border)}
@@ -320,12 +323,23 @@ code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:11px;color:v
 .pp-footer{margin-top:auto;border-top:.5pt solid #888;padding-top:1.5mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#444;font-family:'Sarabun',Tahoma,sans-serif}
 .pp-footer b{font-family:monospace;letter-spacing:.3px}
 @media print{
-  body{background:#fff}
-  body.printing .app-shell{display:none!important}
-  body.printing #printArea{display:block}
-  .pp{margin:0;box-shadow:none;page-break-after:always;min-height:0;height:277mm;overflow:hidden}
-  .pp:last-child{page-break-after:auto}
-  @page{size:A4;margin:10mm 0}
+  /* หน้ากระดาษเต็ม A4 ไม่มี margin ของเบราว์เซอร์ — ระยะขอบจริงมาจาก padding ของ .pp
+     (กันเนื้อหาตกขอบจากการปัดเศษ และกันเครื่องพิมพ์ตัดขอบ) */
+  @page{size:A4 portrait;margin:0}
+  html,body{width:210mm;background:#fff;margin:0;padding:0}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.printing .app-shell,body.preview-mode .app-shell{display:none!important}
+  body.printing #printArea,body.preview-mode #printArea{display:block;background:none!important;padding:0!important}
+  .no-print{display:none!important}
+  /* padding เท่ากับตอนดูบนจอ (10mm 12mm 8mm) เพื่อให้สัดส่วนพิมพ์ = สัดส่วนพรีวิว */
+  .pp{width:210mm;max-width:210mm;height:295mm;min-height:0;margin:0;
+      box-shadow:none!important;page-break-after:always;break-after:page;overflow:hidden}
+  .pp:last-child{page-break-after:auto;break-after:auto}
+  /* บังคับพิมพ์พื้นหลัง/สีของแถบหัวข้อ ให้เหมือนที่เห็นบนจอ */
+  .pp,.pp *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .pp img{max-width:100%}
+  .pp table{page-break-inside:auto}
+  .pp tr,.pp .pp-sec,.pp .pp-footer{page-break-inside:avoid;break-inside:avoid}
 }
 /* Print preview on screen */
 body.preview-mode #printArea{display:block;background:#9aa5b1;padding:10mm 0}
@@ -3510,7 +3524,7 @@ function previewPrint(rec){
   if(document.body.classList.contains('preview-mode')){
     document.body.classList.remove('preview-mode'); pa.innerHTML=''; return;
   }
-  pa.innerHTML = '<div style="text-align:center;padding:6mm 0"><button class="btn btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button> <button class="btn" onclick="previewPrint(currentRec)">✕ ปิดตัวอย่าง</button></div>' + buildPrintDoc(rec);
+  pa.innerHTML = '<div class="no-print" style="text-align:center;padding:6mm 0"><button class="btn btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button> <button class="btn" onclick="previewPrint(currentRec)">✕ ปิดตัวอย่าง</button></div>' + buildPrintDoc(rec);
   document.body.classList.add('preview-mode');
   pa.scrollIntoView({behavior:'smooth'});
 }
