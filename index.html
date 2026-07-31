@@ -63,6 +63,10 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .form-group textarea{resize:vertical;min-height:60px}
 .form-group input.err{border-color:var(--danger)}
 .err-msg{color:var(--danger);font-size:11px}
+/* ตัวนับอักษร — ช่องที่จำกัดความยาวเพื่อให้ฟอร์มพิมพ์คงรูป */
+.char-cnt{font-size:10px;color:var(--muted);text-align:right;margin-top:-2px}
+.char-cnt.near{color:var(--warn);font-weight:600}
+.char-cnt.full{color:var(--danger);font-weight:600}
 .section-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.8px;margin:18px 0 10px;display:flex;align-items:center;gap:6px}
 .section-label::after{content:'';flex:1;height:1px;background:var(--primary-light)}
 .radio-group{display:flex;flex-wrap:wrap;gap:6px}
@@ -305,22 +309,23 @@ code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:11px;color:v
 .mode-tag{font-size:10px;padding:2px 8px;border-radius:3px;background:#fef9ec;color:#7a5c00;border:1px solid #f0c040;margin-left:8px}
 /* ============ PRINT DOCUMENT (AKR-OHR-FM-001 replica) ============ */
 #printArea{display:none}
-.pp{width:210mm;min-height:296mm;background:#fff;margin:0 auto 10mm;padding:10mm 12mm 8mm;display:flex;flex-direction:column;position:relative;font-size:9.5pt;line-height:1.45;color:#000}
+/* --ppz = ตัวคูณขนาดตัวอักษร (1 = ปกติ) — ลดลงอัตโนมัติเมื่อเนื้อหาล้นหน้า ดู fitPrintPages_() */
+.pp{--ppz:1;width:210mm;min-height:296mm;background:#fff;margin:0 auto 10mm;padding:10mm 12mm 8mm;display:flex;flex-direction:column;position:relative;font-size:calc(9.5pt * var(--ppz));line-height:1.45;color:#000}
 .pp-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5pt solid #1a4f8a;padding-bottom:2mm;margin-bottom:3mm}
 .pp-head img{height:11mm}
 .pp-head .mine{color:#555;font-size:8pt}
-.pp-title{background:#1a4f8a;color:#fff;text-align:center;font-weight:700;font-size:12pt;padding:1.6mm 0}
-.pp-commit{background:#1a4f8a;color:#fff;font-size:7pt;text-align:center;padding:1mm 3mm;line-height:1.4}
-.pp-sec{background:#1a4f8a;color:#fff;font-weight:700;padding:1mm 3mm;margin-top:2.5mm;font-size:9.5pt}
+.pp-title{background:#1a4f8a;color:#fff;text-align:center;font-weight:700;font-size:calc(12pt * var(--ppz));padding:1.6mm 0}
+.pp-commit{background:#1a4f8a;color:#fff;font-size:calc(7pt * var(--ppz));text-align:center;padding:1mm 3mm;line-height:1.4}
+.pp-sec{background:#1a4f8a;color:#fff;font-weight:700;padding:1mm 3mm;margin-top:2.5mm;font-size:calc(9.5pt * var(--ppz))}
 .pp table{width:100%;border-collapse:collapse}
-.pp td,.pp th{border:.5pt solid #000;padding:1mm 2mm;vertical-align:top;font-size:9pt}
-.pp .lb{background:#e8f0fa;font-size:7.5pt;line-height:1.3}
-.pp .ck{font-size:11pt;line-height:1}
-.pp .sm{font-size:7.5pt}
+.pp td,.pp th{border:.5pt solid #000;padding:calc(1mm * var(--ppz)) 2mm;vertical-align:top;font-size:calc(9pt * var(--ppz))}
+.pp .lb{background:#e8f0fa;font-size:calc(7.5pt * var(--ppz));line-height:1.3}
+.pp .ck{font-size:calc(11pt * var(--ppz));line-height:1}
+.pp .sm{font-size:calc(7.5pt * var(--ppz))}
 .pp-photo{border:.5pt solid #000;width:28mm;height:36mm;display:flex;align-items:center;justify-content:center;font-size:7pt;color:#888;overflow:hidden}
 .pp-photo img{width:100%;height:100%;object-fit:cover}
 /* ISO footer — bottom of EVERY page */
-.pp-footer{margin-top:auto;border-top:.5pt solid #888;padding-top:1.5mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#444;font-family:'Sarabun',Tahoma,sans-serif}
+.pp-footer{margin-top:auto;border-top:.5pt solid #888;padding-top:1.5mm;display:flex;justify-content:space-between;font-size:calc(7.5pt * var(--ppz,1));color:#444;font-family:'Sarabun',Tahoma,sans-serif}
 .pp-footer b{font-family:monospace;letter-spacing:.3px}
 @media print{
   /* หน้ากระดาษเต็ม A4 ไม่มี margin ของเบราว์เซอร์ — ระยะขอบจริงมาจาก padding ของ .pp
@@ -344,6 +349,9 @@ code{background:#eef2f7;padding:1px 5px;border-radius:3px;font-size:11px;color:v
 /* Print preview on screen */
 body.preview-mode #printArea{display:block;background:#9aa5b1;padding:10mm 0}
 body.preview-mode .pp{box-shadow:0 2px 12px rgba(0,0,0,.3)}
+/* โหมดวัดขนาด (ซ่อนนอกจอ) — จำลองขนาดหน้ากระดาษจริงเพื่อตรวจว่าเนื้อหาล้นหรือไม่ */
+body.measuring #printArea{display:block;position:absolute;left:-20000px;top:0;width:210mm;background:none;padding:0}
+body.measuring .pp{height:295mm;min-height:0;margin:0;overflow:hidden;box-shadow:none}
 @media(max-width:640px){
   .g2,.g3,.g4,.g4eq{grid-template-columns:1fr 1fr!important}
   .toolbar{gap:6px}
@@ -782,10 +790,43 @@ function apiNotifyAppt(applicant, apptType, appt){
   });
 }
 
+// ─── ขีดจำกัดความยาวข้อความ (กันฟอร์มพิมพ์เสียรูป) ────────────────────
+// ตัวเลขอิงจากพื้นที่จริงในฟอร์ม AKR-OHR-FM-001 ที่ 9pt — เกินกว่านี้เนื้อหาจะล้นหน้า
+var LIMITS = {
+  company:60, position:60, salary:20,   // ตารางประวัติการทำงาน (หน้า 2)
+  acc:220,                              // ลักษณะงาน — ช่องที่ยาวที่สุด
+  reason:80,                            // สาเหตุการลาออก
+  eduIns:60, eduField:45,               // ตารางการศึกษา (หน้า 1)
+  compSkill:40, lang:25,                // ทักษะ
+  emgName:45, emgAddr:70, emgRel:20,    // ผู้ติดต่อฉุกเฉิน
+  knownName:45, knownRel:30,            // บุคคลที่รู้จักในบริษัท
+  pos:60                                // ตำแหน่งที่สมัคร
+};
+// อัปเดตตัวนับอักษรใต้ช่องกรอก
+function cnt_(el){
+  var box = el.parentNode.querySelector('.char-cnt');
+  if(!box) return;
+  var max = parseInt(el.getAttribute('maxlength'),10)||0;
+  var n = el.value.length;
+  box.textContent = n+' / '+max;
+  box.className = 'char-cnt' + (n>=max ? ' full' : (n>=max*0.85 ? ' near' : ''));
+}
+// input พร้อม maxlength + ตัวนับ (bind ค่าด้วย expression ที่ส่งเข้ามา)
+function fldLim(label, en, bindExpr, v, max, ph, multiline){
+  var common = 'maxlength="'+max+'" oninput="'+bindExpr+'=this.value;cnt_(this)" placeholder="'+esc(ph||'')+'"';
+  var field = multiline
+    ? '<textarea rows="2" style="min-height:46px" '+common+'>'+val(v)+'</textarea>'
+    : '<input value="'+val(v)+'" '+common+'>';
+  var n = (v||'').length;
+  var cls = 'char-cnt' + (n>=max ? ' full' : (n>=max*0.85 ? ' near' : ''));
+  return '<div class="form-group"><label><span class="th">'+label+'</span>'+(en?' <span class="en">'+en+'</span>':'')+'</label>'
+    + field + '<div class="'+cls+'">'+n+' / '+max+'</div></div>';
+}
+
 // ─── Applicant form: field builders ──────────────────────────────────
-function fld(lth,len,id,type,v,ph){
+function fld(lth,len,id,type,v,ph,max){
   return '<div class="form-group"><label for="'+id+'"><span class="th">'+lth+'</span> <span class="en">'+len+'</span></label>'
-    + '<input type="'+(type||'text')+'" id="'+id+'" value="'+val(v)+'" placeholder="'+esc(ph||'')+'" oninput="F[\''+id+'\']=this.value;clearErr(\''+id+'\')">'
+    + '<input type="'+(type||'text')+'" id="'+id+'" value="'+val(v)+'"'+(max?' maxlength="'+max+'"':'')+' placeholder="'+esc(ph||'')+'" oninput="F[\''+id+'\']=this.value;clearErr(\''+id+'\')">'
     + '<span class="err-msg" id="err_'+id+'"></span></div>';
 }
 function fldTA(lth,len,id,v,ph){
@@ -817,8 +858,8 @@ function fldAddrBlock(objKey, a){
 function buildStep0(){
   return '<div class="card"><div class="card-header"><div class="icon">💼</div><h2>ตำแหน่งที่ต้องการสมัคร <small>Position Applied 1-3</small></h2></div>'
     + '<div class="alert alert-info">📄 แบบฟอร์ม <strong>'+CONFIG.DOC.no+' Rev.'+CONFIG.DOC.rev+'</strong> | วันที่กรอก: '+todayTH()+(isDemo()?' <span class="mode-tag">โหมดทดลอง — ข้อมูลเก็บในเครื่องนี้</span>':'')+'</div>'
-    + '<div class="form-grid g2">'+fld('ตำแหน่งลำดับที่ 1 *','1st Choice','pos1','text',F.pos1,'ตำแหน่งที่ต้องการสมัคร')+fld('เงินเดือนที่คาดหวัง *','Expected Salary (THB)','salary','text',F.salary,'บาท/เดือน')+'</div>'
-    + '<div class="form-grid g2" style="margin-top:12px">'+fld('ตำแหน่งลำดับที่ 2','2nd Choice','pos2','text',F.pos2,'')+fld('ตำแหน่งลำดับที่ 3','3rd Choice','pos3','text',F.pos3,'')+'</div></div>';
+    + '<div class="form-grid g2">'+fld('ตำแหน่งลำดับที่ 1 *','1st Choice','pos1','text',F.pos1,'ตำแหน่งที่ต้องการสมัคร',LIMITS.pos)+fld('เงินเดือนที่คาดหวัง *','Expected Salary (THB)','salary','text',F.salary,'บาท/เดือน',LIMITS.salary)+'</div>'
+    + '<div class="form-grid g2" style="margin-top:12px">'+fld('ตำแหน่งลำดับที่ 2','2nd Choice','pos2','text',F.pos2,'',LIMITS.pos)+fld('ตำแหน่งลำดับที่ 3','3rd Choice','pos3','text',F.pos3,'',LIMITS.pos)+'</div></div>';
 }
 function buildStep1(){
   var ph = photoDataURL ? '<img src="'+photoDataURL+'" alt="">' : '<div class="ph-hint">📷<br>คลิกเพื่อแนบรูปถ่าย<br><span style="font-size:9px;color:#aaa">1 นิ้ว หรือ 1.5 นิ้ว</span></div>';
@@ -860,10 +901,10 @@ function buildStep2(){
     var e = F.edu[lv.k]||{};
     return '<div class="work-block" style="margin-bottom:10px"><div class="work-block-num">'+lv.l+' / '+lv.e+'</div>'
       + '<div class="form-grid g4" style="margin-top:6px">'
-      + '<div class="form-group"><label><span class="th">สถาบัน</span> <span class="en">Institution</span></label><input value="'+val(e.ins)+'" oninput="F.edu.'+lv.k+'.ins=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">สาขาวิชา</span> <span class="en">Field of Study</span></label><input value="'+val(e.field)+'" oninput="F.edu.'+lv.k+'.field=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">ปีที่จบ</span> <span class="en">Year</span></label><input value="'+val(e.year)+'" placeholder="2566" oninput="F.edu.'+lv.k+'.year=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">เกรด</span> <span class="en">GPA</span></label><input value="'+val(e.gpa)+'" placeholder="3.00" oninput="F.edu.'+lv.k+'.gpa=this.value"></div>'
+      + fldLim('สถาบัน','Institution','F.edu.'+lv.k+'.ins', e.ins, LIMITS.eduIns, '')
+      + fldLim('สาขาวิชา','Field of Study','F.edu.'+lv.k+'.field', e.field, LIMITS.eduField, '')
+      + '<div class="form-group"><label><span class="th">ปีที่จบ</span> <span class="en">Year</span></label><input maxlength="4" value="'+val(e.year)+'" placeholder="2566" oninput="F.edu.'+lv.k+'.year=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">เกรด</span> <span class="en">GPA</span></label><input maxlength="5" value="'+val(e.gpa)+'" placeholder="3.00" oninput="F.edu.'+lv.k+'.gpa=this.value"></div>'
       + '</div></div>';
   }).join('');
   return '<div class="card"><div class="card-header"><div class="icon">🎓</div><h2>ข้อมูลทางการศึกษา <small>Education Background</small></h2></div>'
@@ -871,43 +912,52 @@ function buildStep2(){
 }
 function buildStep3(){
   var blocks = F.works.map(function(w,i){
+    var b = 'F.works['+i+']';
     return '<div class="work-block"><div class="work-block-num">ที่ทำงาน '+(i+1)+' / Company '+(i+1)+'</div>'
       + '<div class="form-grid g3" style="margin-top:8px">'
-      + '<div class="form-group"><label><span class="th">บริษัท</span> <span class="en">Company</span></label><input value="'+val(w.company)+'" oninput="F.works['+i+'].company=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">ตำแหน่ง</span> <span class="en">Position</span></label><input value="'+val(w.position)+'" oninput="F.works['+i+'].position=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">เงินเดือน</span> <span class="en">Salary</span></label><input value="'+val(w.salary)+'" oninput="F.works['+i+'].salary=this.value"></div></div>'
+      + fldLim('บริษัท','Company', b+'.company', w.company, LIMITS.company, '')
+      + fldLim('ตำแหน่ง','Position', b+'.position', w.position, LIMITS.position, '')
+      + fldLim('เงินเดือน','Salary', b+'.salary', w.salary, LIMITS.salary, '')
+      + '</div>'
       + '<div class="form-grid g2" style="margin-top:8px">'
-      + '<div class="form-group"><label><span class="th">จาก</span> <span class="en">From</span></label><input type="month" value="'+val(w.from)+'" oninput="F.works['+i+'].from=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">ถึง</span> <span class="en">To</span></label><input type="month" value="'+val(w.to)+'" oninput="F.works['+i+'].to=this.value"></div></div>'
-      + '<div class="form-group" style="margin-top:8px"><label><span class="th">ลักษณะงาน</span> <span class="en">Accountability</span></label><input value="'+val(w.acc)+'" oninput="F.works['+i+'].acc=this.value"></div>'
-      + '<div class="form-group" style="margin-top:8px"><label><span class="th">สาเหตุการลาออก</span> <span class="en">Reason for Leaving</span></label><input value="'+val(w.reason)+'" oninput="F.works['+i+'].reason=this.value"></div></div>';
+      + '<div class="form-group"><label><span class="th">จาก</span> <span class="en">From</span></label><input type="month" value="'+val(w.from)+'" oninput="'+b+'.from=this.value"></div>'
+      + '<div class="form-group"><label><span class="th">ถึง</span> <span class="en">To</span></label><input type="month" value="'+val(w.to)+'" oninput="'+b+'.to=this.value"></div></div>'
+      + '<div style="margin-top:8px">'
+      + fldLim('ลักษณะงาน','Accountability — สรุปสั้นๆ ให้พอดีช่องในใบสมัคร', b+'.acc', w.acc, LIMITS.acc, 'เช่น อบรมความปลอดภัย ตรวจสอบอุปกรณ์ จัดทำรายงาน', true)
+      + '</div>'
+      + '<div style="margin-top:8px">'
+      + fldLim('สาเหตุการลาออก','Reason for Leaving', b+'.reason', w.reason, LIMITS.reason, '')
+      + '</div></div>';
   }).join('');
   return '<div class="card"><div class="card-header"><div class="icon">🏢</div><h2>ประวัติการทำงาน <small>Work Experience</small></h2></div>'
-    + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">เรียงจากที่ทำงานล่าสุด เว้นว่างหากไม่มีประวัติการทำงาน</p>'+blocks+'</div>';
+    + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px">เรียงจากที่ทำงานล่าสุด เว้นว่างหากไม่มีประวัติการทำงาน</p>'
+    + '<div class="alert alert-info" style="font-size:12px">✏️ ช่อง "ลักษณะงาน" จำกัด '+LIMITS.acc+' ตัวอักษร เพื่อให้ใบสมัครที่พิมพ์ออกมาคงรูปแบบมาตรฐาน — กรุณาสรุปเฉพาะหน้าที่หลัก หากมีรายละเอียดเพิ่มเติมสามารถแนบ Resume ในขั้นตอนเอกสารแนบได้</div>'
+    + blocks+'</div>';
 }
 function buildStep4(){
   var comp = F.compSkills.map(function(s,i){
-    return '<div class="form-group"><label><span class="th">โปรแกรมที่ '+(i+1)+'</span> <span class="en">Program</span></label><input value="'+val(s)+'" placeholder="เช่น MS Office, AutoCAD, SAP" oninput="F.compSkills['+i+']=this.value"></div>';
+    return fldLim('โปรแกรมที่ '+(i+1),'Program','F.compSkills['+i+']', s, LIMITS.compSkill, 'เช่น MS Office, AutoCAD, SAP');
   }).join('');
   var langs = F.langSkills.map(function(l,i){
     var lv = ['ดีมาก / Excellent','ดี / Good','พอใช้ / Fair','เล็กน้อย / Basic'].map(function(o){
       return '<option'+(l.level===o?' selected':'')+'>'+o+'</option>';
     }).join('');
     return '<div class="form-grid g2" style="margin-bottom:8px">'
-      + '<div class="form-group"><label><span class="th">ภาษาที่ '+(i+1)+'</span> <span class="en">Language</span></label><input value="'+val(l.lang)+'" placeholder="เช่น อังกฤษ" oninput="F.langSkills['+i+'].lang=this.value"></div>'
+      + fldLim('ภาษาที่ '+(i+1),'Language','F.langSkills['+i+'].lang', l.lang, LIMITS.lang, 'เช่น อังกฤษ')
       + '<div class="form-group"><label><span class="th">ระดับ</span> <span class="en">Level</span></label><select onchange="F.langSkills['+i+'].level=this.value"><option value="">- เลือก -</option>'+lv+'</select></div></div>';
   }).join('');
   var known = F.known.map(function(kn,i){
     return '<div class="form-grid g2" style="margin-bottom:8px">'
-      + '<div class="form-group"><label><span class="th">ชื่อ-นามสกุล '+(i+1)+'</span></label><input value="'+val(kn.name)+'" oninput="F.known['+i+'].name=this.value"></div>'
-      + '<div class="form-group"><label><span class="th">ความสัมพันธ์</span></label><input value="'+val(kn.rel)+'" oninput="F.known['+i+'].rel=this.value"></div></div>';
+      + fldLim('ชื่อ-นามสกุล '+(i+1),'','F.known['+i+'].name', kn.name, LIMITS.knownName, '')
+      + fldLim('ความสัมพันธ์','','F.known['+i+'].rel', kn.rel, LIMITS.knownRel, '')
+      + '</div>';
   }).join('');
   return '<div class="card"><div class="card-header"><div class="icon">💻</div><h2>ทักษะ และข้อมูลเพิ่มเติม <small>Skills &amp; Additional Information</small></h2></div>'
     + '<div class="section-label">ความสามารถทางคอมพิวเตอร์ Computer Skills</div><div class="form-grid g3">'+comp+'</div>'
     + '<div class="section-label" style="margin-top:16px">ความสามารถทางด้านภาษา Language Skills</div>'+langs
     + '<div class="section-label" style="margin-top:16px">บุคคลที่ติดต่อได้กรณีฉุกเฉิน Emergency Contact</div>'
-    + '<div class="form-grid g2">'+fld('ชื่อ-นามสกุล','Name - Surname','emgName','text',F.emgName,'')+fld('โทรศัพท์','Telephone','emgPhone','tel',F.emgPhone,'')+'</div>'
-    + '<div class="form-grid g2" style="margin-top:8px">'+fld('ที่อยู่','Address','emgAddr','text',F.emgAddr,'')+fld('ความสัมพันธ์','Relationship','emgRel','text',F.emgRel,'เช่น บิดา มารดา')+'</div>'
+    + '<div class="form-grid g2">'+fldLim('ชื่อ-นามสกุล','Name - Surname','F.emgName',F.emgName,LIMITS.emgName,'')+fld('โทรศัพท์','Telephone','emgPhone','tel',F.emgPhone,'')+'</div>'
+    + '<div class="form-grid g2" style="margin-top:8px">'+fldLim('ที่อยู่','Address','F.emgAddr',F.emgAddr,LIMITS.emgAddr,'')+fldLim('ความสัมพันธ์','Relationship','F.emgRel',F.emgRel,LIMITS.emgRel,'เช่น บิดา มารดา')+'</div>'
     + '<div class="section-label" style="margin-top:16px">บุคคลที่รู้จักหรือร่วมงานในบริษัท Known Within Company</div>'+known+'</div>';
 }
 // ─── Step 5: เอกสารแนบ ────────────────────────────────────────────────
@@ -3507,10 +3557,41 @@ function ensureHealthDocNo_(rec, typeKey){
   records.forEach(function(x){ if(x.id===rec.id) x.appts=rec.appts; });
   return a.docNo;
 }
+// ── Auto-fit: ย่อขนาดตัวอักษรเฉพาะหน้าที่เนื้อหาล้น ──
+// ผู้สมัครบางคนพิมพ์ "ลักษณะงาน" ยาวมาก ทำให้เนื้อหาเกิน 1 หน้า A4
+// ถ้าปล่อยไว้ overflow:hidden จะตัดท้ายกระดาษ (footer ISO) หายไปเงียบๆ
+// จึงวัดความสูงจริงก่อนพิมพ์ แล้วลด --ppz ทีละขั้นจนพอดีหน้า (ต่ำสุด 70%)
+var PP_MIN_ZOOM = 0.70;
+function fitPrintPages_(){
+  var pa = $('printArea'); if(!pa) return [];
+  var wasPreview = document.body.classList.contains('preview-mode');
+  document.body.classList.remove('preview-mode');
+  document.body.classList.add('measuring');
+  var overflowed = [];
+  var pages = pa.querySelectorAll('.pp');
+  for(var i=0;i<pages.length;i++){
+    var el = pages[i];
+    // ใบนัด/ใบส่งตัว กำหนด height:auto ไว้ (ยาวเท่าไรก็ได้) — ไม่ต้องย่อ
+    if(el.style.height==='auto') continue;
+    var z = 1;
+    el.style.setProperty('--ppz', z);
+    var guard = 0;
+    while(el.scrollHeight > el.clientHeight + 1 && z > PP_MIN_ZOOM && guard++ < 40){
+      z = Math.round((z - 0.02)*100)/100;
+      el.style.setProperty('--ppz', z);
+    }
+    if(el.scrollHeight > el.clientHeight + 1) overflowed.push(i+1);
+  }
+  document.body.classList.remove('measuring');
+  if(wasPreview) document.body.classList.add('preview-mode');
+  return overflowed;
+}
 function printRecord(rec){
   if(!rec){ alert('ไม่พบข้อมูลสำหรับพิมพ์'); return; }
   var pa = $('printArea');
   pa.innerHTML = buildPrintDoc(rec);
+  var over = fitPrintPages_();
+  if(over.length && !confirm('หน้า '+over.join(', ')+' มีข้อมูลยาวมากจนย่อแล้วยังเกินหนึ่งหน้า\nส่วนที่เกินจะไม่ถูกพิมพ์\n\nแนะนำให้ย่อข้อความ "ลักษณะงาน" ในใบสมัครก่อน\n\nกด OK เพื่อพิมพ์ต่อไป')){ return; }
   document.body.classList.remove('preview-mode');
   document.body.classList.add('printing');
   setTimeout(function(){
@@ -3525,6 +3606,7 @@ function previewPrint(rec){
     document.body.classList.remove('preview-mode'); pa.innerHTML=''; return;
   }
   pa.innerHTML = '<div class="no-print" style="text-align:center;padding:6mm 0"><button class="btn btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button> <button class="btn" onclick="previewPrint(currentRec)">✕ ปิดตัวอย่าง</button></div>' + buildPrintDoc(rec);
+  fitPrintPages_();   // ย่อหน้าที่ล้นก่อน เพื่อให้ตัวอย่าง = ที่พิมพ์จริง
   document.body.classList.add('preview-mode');
   pa.scrollIntoView({behavior:'smooth'});
 }
