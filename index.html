@@ -473,6 +473,7 @@ var trainCtx = null;          // บริบทหน้ายืนยัน�
 var trainBatchCtx = null;     // บริบทหน้ายืนยันแบบรวม (module token)
 var trainBatchSel = {};       // พนักงานที่ติ๊กเลือกในหน้ารวม
 var reportFilter = { status:'', position:'', from:'', to:'' };
+var jobsLoadState = '';       // '' | loading | ok | error — แยก "ไม่มีตำแหน่ง" กับ "โหลดไม่สำเร็จ" ในหน้าแรก
 var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
   company:{ name:'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)', site:'Chatree Gold Mine, จ.พิจิตร', hrPhone:'', hrEmail:'' },
@@ -613,27 +614,63 @@ function nextRecNo(arr){
   });
   return prefix + ('0000'+(max+1)).slice(-4);
 }
+// ── ความทนทานต่อความไม่เสถียรของ Google Apps Script ──
+// ชั้นให้บริการของ Apps Script ตอบกลับเป็นหน้า HTML/ค้างเป็นครั้งคราว (สคริปต์ทำงานเสร็จแล้วแต่ส่งผลไม่ถึง)
+// จึงตั้งเวลาคอยสูงสุดต่อครั้ง แล้วลองใหม่อัตโนมัติ — เฉพาะคำสั่ง "อ่านข้อมูล" ที่เรียกซ้ำได้ปลอดภัย
+var API_TIMEOUT_MS = 20000;  // คำขอที่สำเร็จปกติใช้ ~4-5 วิ — เกิน 20 วิถือว่าค้าง ตัดแล้วยิงใหม่เร็วกว่ารอ
+var API_RETRY_MAX  = 4;      // จำนวนครั้งรวมที่ยิงต่อ 1 คำขอ
+var RETRYABLE_ACTIONS = {
+  list:1, jobs:1, settings:1, record:1, ping:1,
+  checkDuplicate:1, trainInfo:1, trainBatchInfo:1
+};
+function fetchTimeout_(url, opts, ms){
+  if(typeof AbortController==='undefined') return fetch(url, opts);
+  var ac = new AbortController();
+  var t = setTimeout(function(){ ac.abort(); }, ms||API_TIMEOUT_MS);
+  opts = opts||{}; opts.signal = ac.signal;
+  return fetch(url, opts).then(
+    function(r){ clearTimeout(t); return r; },
+    function(e){ clearTimeout(t); var er=new Error('คำขอใช้เวลานานเกินไป'); er._transient=true; throw (e && e.name==='AbortError') ? er : e; }
+  );
+}
+function wait_(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+// ยิงซ้ำเมื่อเจอปัญหาชั่วคราว: ตอบเป็นหน้าเว็บ / ค้าง / เน็ตสะดุด
+function withRetry_(action, doCall, attempt){
+  attempt = attempt || 1;
+  return doCall().catch(function(err){
+    var canRetry = RETRYABLE_ACTIONS[action] && attempt < API_RETRY_MAX && (err && (err._transient || /failed to fetch|networkerror|load failed/i.test(String(err.message||err))));
+    if(!canRetry) throw err;
+    return wait_(600*attempt).then(function(){ return withRetry_(action, doCall, attempt+1); });
+  });
+}
 // shared POST: แนบ token + sid อัตโนมัติ
 function apiPost(payload){
   payload.token = CONFIG.API_TOKEN;
   if(session && session.sid) payload.sid = session.sid;
-  return fetch(CONFIG.API_URL, {
-    method:'POST',
-    redirect:'follow',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
-  }).then(parseApiResponse_).catch(function(err){ throw netError_(err); });
+  var body = JSON.stringify(payload);
+  return withRetry_(payload.action, function(){
+    return fetchTimeout_(CONFIG.API_URL, {
+      method:'POST',
+      redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: body
+    }).then(parseApiResponse_);
+  }).catch(function(err){ throw netError_(err); });
 }
 function apiGet(qs){
-  return fetch(CONFIG.API_URL + '?' + qs, { method:'GET', redirect:'follow' })
-    .then(parseApiResponse_).catch(function(err){ throw netError_(err); });
+  var action = (qs.match(/(?:^|&)action=([^&]*)/)||[])[1] || '';
+  return withRetry_(action, function(){
+    return fetchTimeout_(CONFIG.API_URL + '?' + qs, { method:'GET', redirect:'follow' }).then(parseApiResponse_);
+  }).catch(function(err){ throw netError_(err); });
 }
 function parseApiResponse_(r){
   return r.text().then(function(t){
     try { return JSON.parse(t); }
     catch(e){
       if(t.indexOf('<')===0 || /sign in|authoriz|accounts\.google/i.test(t)){
-        throw new Error('เซิร์ฟเวอร์ตอบกลับเป็นหน้าเว็บ ไม่ใช่ข้อมูล — ตรวจว่า Deploy ตั้ง "Who has access" เป็น Anyone และใช้ URL ที่ลงท้าย /exec');
+        var er = new Error('เซิร์ฟเวอร์ตอบกลับเป็นหน้าเว็บ ไม่ใช่ข้อมูล — Google Apps Script ส่งข้อมูลไม่สำเร็จ กรุณากด "รีเฟรช" อีกครั้ง (ถ้าเป็นบ่อย ตรวจว่า Deploy ตั้ง "Who has access" เป็น Anyone และใช้ URL ที่ลงท้าย /exec)');
+        er._transient = true;   // เกิดจากความไม่เสถียรของ Apps Script → ลองใหม่ได้
+        throw er;
       }
       throw new Error('รูปแบบข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง');
     }
@@ -1448,8 +1485,9 @@ function loadDashboard(){
 function errMsg_(e){ return (e && e.message) ? e.message : String(e); }
 function loadHome(){
   view='home'; render();
-  apiJobs().then(function(arr){ jobs=arr||[]; if(view==='home') render(); })
-    .catch(function(){ jobs=[]; if(view==='home') render(); });
+  jobsLoadState = 'loading'; 
+  apiJobs().then(function(arr){ jobs=arr||[]; jobsLoadState='ok'; if(view==='home') render(); })
+    .catch(function(){ jobs=[]; jobsLoadState='error'; if(view==='home') render(); });
 }
 function setFilter(s){ filterStatus = (filterStatus===s)?'':s; render(); }
 function filteredRecords(){
@@ -1745,9 +1783,18 @@ function viewHome(){
       + '<span class="job-more">ดูรายละเอียด →</span>'
       + '</div></div>';
   }).join('');
-  var jobsSection = open.length
-    ? '<div class="job-grid">'+cards+'</div>'
-    : '<div class="empty-state">ขณะนี้ยังไม่มีประกาศรับสมัครงาน — สามารถยื่นใบสมัครทั่วไปไว้ล่วงหน้าได้</div>';
+  // แยกให้ชัดระหว่าง "ไม่มีตำแหน่งเปิดรับ" กับ "โหลดไม่สำเร็จ" (Apps Script ตอบไม่ครบเป็นครั้งคราว)
+  var jobsSection;
+  if(open.length){
+    jobsSection = '<div class="job-grid">'+cards+'</div>';
+  } else if(jobsLoadState==='loading'){
+    jobsSection = '<div class="empty-state">⏳ กำลังโหลดตำแหน่งงาน…</div>';
+  } else if(jobsLoadState==='error'){
+    jobsSection = '<div class="empty-state">⚠ โหลดตำแหน่งงานไม่สำเร็จ — ระบบเชื่อมต่อขัดข้องชั่วคราว<br>'
+      + '<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="loadHome()">↻ ลองใหม่</button></div>';
+  } else {
+    jobsSection = '<div class="empty-state">ขณะนี้ยังไม่มีประกาศรับสมัครงาน — สามารถยื่นใบสมัครทั่วไปไว้ล่วงหน้าได้</div>';
+  }
   return '<div class="home-hero">'
     + '<span class="hero-badge">✦ ร่วมเป็นส่วนหนึ่งของทีม</span>'
     + '<h1>ร่วมงานกับ อัครา รีซอร์สเซส</h1>'
