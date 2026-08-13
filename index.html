@@ -122,6 +122,8 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .stat-card.s-intv{border-top-color:#8e44ad}.stat-card.s-intv .num{color:#8e44ad}
 .stat-card.s-pass{border-top-color:var(--success)}.stat-card.s-pass .num{color:var(--success)}
 .stat-card.s-fail{border-top-color:var(--danger)}.stat-card.s-fail .num{color:var(--danger)}
+.stat-card.s-start{border-top-color:#0f7a4a}.stat-card.s-start .num{color:#0f7a4a}
+.stat-card.s-noshow{border-top-color:#7a5c1e}.stat-card.s-noshow .num{color:#7a5c1e}
 .ats-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
 .ats-table th{background:var(--primary);color:#fff;font-size:12px;font-weight:600;padding:9px 12px;text-align:left;white-space:nowrap}
 .ats-table td{padding:8px 12px;border-bottom:1px solid #eef1f5;font-size:13px;vertical-align:middle}
@@ -133,6 +135,8 @@ body{font-family:'Sarabun',Tahoma,sans-serif;background:var(--bg);color:var(--te
 .st-นัดสัมภาษณ์{background:#f3e8fb;color:#8e44ad}
 .st-ผ่าน{background:#e8f8f0;color:var(--success)}
 .st-ไม่ผ่าน{background:#fdf0ee;color:var(--danger)}
+.st-เริ่มงานแล้ว{background:#dff5e8;color:#0f7a4a}
+.st-noshow{background:#f4ecd8;color:#7a5c1e}
 .status-sel{padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit}
 .search-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .search-bar input,.search-bar select{padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none}
@@ -395,7 +399,11 @@ var CONFIG = {
 // หมายเหตุ: รหัสผ่าน HR ย้ายไปเก็บฝั่ง server (Script Properties → HR_USERS_JSON) แล้ว
 // โหมดทดลอง (ไม่มี API_URL) ใช้บัญชีจำลองด้านล่างนี้เท่านั้น
 var DEMO_HR = [{ user:'demo', name:'ผู้ทดสอบ', pass:'demo', role:'admin' }];
-var STATUSES = ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
+var STATUSES = ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','เริ่มงานแล้ว','No Show','ไม่ผ่าน'];
+// สถานะกลุ่ม "พนักงานเริ่มงาน" (ใช้ในเมนู Onboarding / ไฟล์ TigerSoft) — No Show ไม่นับ
+function isStarter(r){ return r && (r.status==='ผ่าน' || r.status==='เริ่มงานแล้ว'); }
+// class ของ status-pill (สถานะที่มีช่องว่าง เช่น "No Show" ใช้ชื่อ class แยก)
+function stCls(s){ return s==='No Show' ? 'st-noshow' : 'st-'+s; }
 var APPT_TYPES = [
   { k:'interview', l:'นัดหมายสัมภาษณ์',        icon:'🗓' },
   { k:'health',    l:'ตรวจสุขภาพก่อนเริ่มงาน', icon:'🏥' },
@@ -468,7 +476,7 @@ var reportFilter = { status:'', position:'', from:'', to:'' };
 var bulkSlipSel = {};         // {recId: typeKey} สำหรับพิมพ์ใบนัดจำนวนมาก
 var DEFAULT_SETTINGS = {
   company:{ name:'บริษัท อัครา รีซอร์สเซส จำกัด (มหาชน)', site:'Chatree Gold Mine, จ.พิจิตร', hrPhone:'', hrEmail:'' },
-  stages:['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'],
+  stages:['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','เริ่มงานแล้ว','No Show','ไม่ผ่าน'],
   hospitals:[],
   orgDepartments:[],   // ตัวเลือก Department (คอลัมน์ K ไฟล์ TigerSoft)
   orgSections:[],      // ตัวเลือก Section (คอลัมน์ L)
@@ -479,7 +487,11 @@ var DEFAULT_SETTINGS = {
     start:{subject:'แจ้งกำหนดวันเริ่มงาน — {company}', body:''}
   }
 };
-function curStages(){ return (settings && settings.stages && settings.stages.length) ? settings.stages : STATUSES; }
+function curStages(){
+  var st = (settings && settings.stages && settings.stages.length) ? settings.stages.slice() : STATUSES.slice();
+  STATUSES.forEach(function(s){ if(st.indexOf(s)<0) st.push(s); });  // เผื่อการตั้งค่าเดิมที่ยังไม่มีสถานะใหม่
+  return st;
+}
 
 var F;
 function blankF(){
@@ -1781,7 +1793,7 @@ function viewOverview(){
   var S = settings || {};
   var recs = records || [];
   var jbs = jobs || [];
-  var stages = (S.stages && S.stages.length) ? S.stages : ['ใหม่','คัดกรอง','นัดสัมภาษณ์','ผ่าน','ไม่ผ่าน'];
+  var stages = curStages();
   var today = new Date().toISOString().slice(0,10);
   var thisMonth = today.slice(0,7);
   var total = recs.length;
@@ -1789,7 +1801,13 @@ function viewOverview(){
   stages.forEach(function(s){ byStatus[s]=0; });
   recs.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
   var newCount = byStatus['ใหม่']||0;
-  var passed = byStatus['ผ่าน']||0;
+  var passed = (byStatus['ผ่าน']||0) + (byStatus['เริ่มงานแล้ว']||0);
+  // ถึงวันเริ่มงานแล้วแต่ยังไม่ได้บันทึกว่ามาเริ่มงาน / No Show
+  var startDue = recs.filter(function(r){
+    if(r.status!=='ผ่าน') return false;
+    var s=((r.appts||{}).start||{}).date;
+    return s && s<=today;
+  }).length;
   // นัดหมายที่จะถึง
   var upcomingAppts = collectAppts_().filter(function(x){return x.appt.date>=today;});
   // เริ่มงานเดือนนี้
@@ -1797,14 +1815,14 @@ function viewOverview(){
   // อบรมค้าง (มีคนผ่านแต่ training ยังไม่ครบ)
   var mods=(S.trainModules||[]);
   var trainPending = recs.filter(function(r){
-    if(r.status!=='ผ่าน'||!mods.length) return false;
+    if(!isStarter(r)||!mods.length) return false;
     var tr=(r.onboard||{}).training||{};
     var done=mods.filter(function(m){var st=(tr[m.key]||{}).status;return st==='passed'||st==='skipped';}).length;
     return done<mods.length;
   }).length;
   // เอกสารรอ (TigerSoft ยังไม่ครบ ในกลุ่มผ่าน)
   var tigerPending = recs.filter(function(r){
-    if(r.status!=='ผ่าน') return false;
+    if(!isStarter(r)) return false;
     var t=(r.onboard||{}).tiger||{}; var d=r.data||{};
     return !(t.company&&t.empid&&d.sex&&d.marital&&t.salarytype);
   }).length;
@@ -1827,6 +1845,7 @@ function viewOverview(){
   var todos = [];
   if(newCount>0) todos.push({icon:'🆕',text:'มีใบสมัครใหม่ '+newCount+' ใบ รอคัดกรอง',menu:'applicants',color:'#2c7a7b'});
   if(upcomingAppts.filter(function(x){return !x.appt.notified;}).length>0) todos.push({icon:'✉',text:'มีนัดหมาย '+upcomingAppts.filter(function(x){return !x.appt.notified;}).length+' รายการ ยังไม่ได้แจ้งผู้สมัคร',menu:'appts',color:'#8e44ad'});
+  if(startDue>0) todos.push({icon:'🎯',text:'มีพนักงาน '+startDue+' คน ถึงวันเริ่มงานแล้ว — ยังไม่ได้บันทึกว่า "เริ่มงานแล้ว" หรือ "No Show"',menu:'onboard',color:'#0f7a4a'});
   if(trainPending>0) todos.push({icon:'📚',text:'มีพนักงาน '+trainPending+' คน อบรมยังไม่ครบ',menu:'onboard',color:'#b06d10'});
   if(tigerPending>0) todos.push({icon:'🐯',text:'มีพนักงาน '+tigerPending+' คน ข้อมูล TigerSoft ยังไม่ครบ',menu:'onboard',color:'#c0392b'});
   var todoBox = todos.length
@@ -1858,7 +1877,7 @@ function viewOverview(){
     + statusBar;
 }
 function statusColor_(s){
-  var m={'ใหม่':'#2c7a7b','คัดกรอง':'#8e44ad','นัดสัมภาษณ์':'#c8851a','ผ่าน':'#1a9a5a','ไม่ผ่าน':'#c0392b'};
+  var m={'ใหม่':'#2c7a7b','คัดกรอง':'#8e44ad','นัดสัมภาษณ์':'#c8851a','ผ่าน':'#1a9a5a','เริ่มงานแล้ว':'#0f7a4a','No Show':'#7a5c1e','ไม่ผ่าน':'#c0392b'};
   return m[s]||'#1a4f8a';
 }
 function lastScreener(r){
@@ -1940,7 +1959,7 @@ function reportSummary(){
       + '<td>'+esc(deptOf(d.pos1)||'-')+'</td>'
       + '<td>'+esc(d.phone||d.email||'-')+'</td>'
       + '<td>'+dateTH(r.ts)+'</td>'
-      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span></td>'
+      + '<td><span class="status-pill '+stCls(r.status)+'">'+r.status+'</span></td>'
       + '<td>'+esc(lastScreener(r)||'-')+'</td></tr>';
   }).join('');
   var table = list.length
@@ -1983,7 +2002,7 @@ function exportSummaryReport(){
 function reportJobs(){
   var rows = jobs.map(function(j,i){
     var applied = records.filter(function(r){ return (r.data||{}).pos1===j.title; });
-    var passed = applied.filter(function(r){ return r.status==='ผ่าน'; }).length;
+    var passed = applied.filter(isStarter).length;
     return '<tr><td>'+(i+1)+'</td><td class="rec-no">'+esc(j.id)+'</td>'
       + '<td><strong>'+esc(j.title)+'</strong></td>'
       + '<td>'+esc(j.dept||'-')+'</td>'
@@ -2163,7 +2182,7 @@ function reportStats(){
     var p=(r.data||{}).pos1||'(ไม่ระบุ)';
     posStat[p]=posStat[p]||{total:0,pass:0};
     posStat[p].total++;
-    if(r.status==='ผ่าน') posStat[p].pass++;
+    if(isStarter(r)) posStat[p].pass++;
   });
   // สถิติแยกตามแผนก (ดึงแผนกจากตำแหน่งที่ผู้สมัครเลือก)
   var deptStat = {};
@@ -2171,7 +2190,7 @@ function reportStats(){
     var dep = deptOf((r.data||{}).pos1) || '(ไม่ระบุแผนก)';
     deptStat[dep]=deptStat[dep]||{total:0,pass:0,intv:0};
     deptStat[dep].total++;
-    if(r.status==='ผ่าน') deptStat[dep].pass++;
+    if(isStarter(r)) deptStat[dep].pass++;
     if(r.status==='นัดสัมภาษณ์') deptStat[dep].intv++;
   });
   var statusBars = curStages().map(function(s){
@@ -2276,7 +2295,7 @@ function printBulkSlips(){
 // ── 6. รายงานพนักงานเริ่มงานใหม่ + ยอดยูนิฟอร์ม ──
 function reportOnboarding(){
   // พนักงานที่ผ่านการคัดเลือก (พร้อมเริ่มงาน)
-  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  var starters = records.filter(isStarter);
   // เรียงตามวันเริ่มงาน (ถ้ามีนัด start)
   starters.sort(function(a,b){
     var da=((a.appts||{}).start||{}).date||'9999'; var db=((b.appts||{}).start||{}).date||'9999';
@@ -2331,7 +2350,7 @@ function thDate(iso){ return dateCE(iso); }
 // mode: 'sel' = เฉพาะคนที่ติ๊กเลือกในตารางเมนูเริ่มงาน, อื่นๆ = ทุกคนที่สถานะ "ผ่าน"
 function exportTigerSoft(mode){
   if(typeof XLSX==='undefined'){ alert('โหลด library ไม่สำเร็จ ลองรีเฟรชหน้า'); return; }
-  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  var starters = records.filter(isStarter);
   if(!starters.length){ alert('ยังไม่มีพนักงานที่ผ่านการคัดเลือก'); return; }
   if(mode==='sel'){
     var sel = onboardSel||{};
@@ -2423,7 +2442,7 @@ function printReport(title){
 function viewApplicants(){
   var counts = {all: records.length};
   STATUSES.forEach(function(s){ counts[s] = records.filter(function(r){return r.status===s;}).length; });
-  var statClass = {'ใหม่':'s-new','คัดกรอง':'s-screen','นัดสัมภาษณ์':'s-intv','ผ่าน':'s-pass','ไม่ผ่าน':'s-fail'};
+  var statClass = {'ใหม่':'s-new','คัดกรอง':'s-screen','นัดสัมภาษณ์':'s-intv','ผ่าน':'s-pass','เริ่มงานแล้ว':'s-start','No Show':'s-noshow','ไม่ผ่าน':'s-fail'};
   var stats = '<div class="stat-card s-all'+(filterStatus===''?' on':'')+'" onclick="setFilter(\'\')"><div class="num">'+counts.all+'</div><div class="lbl">ผู้สมัครทั้งหมด</div></div>'
     + STATUSES.map(function(s){
         return '<div class="stat-card '+statClass[s]+(filterStatus===s?' on':'')+'" onclick="setFilter(\''+s+'\')"><div class="num">'+counts[s]+'</div><div class="lbl">'+s+'</div></div>';
@@ -2443,7 +2462,7 @@ function viewApplicants(){
         + '</span></td>'
       + '<td>'+esc(d.pos1||'-')+'</td>'
       + '<td style="font-size:12px">'+dateTH(r.ts)+'</td>'
-      + '<td><span class="status-pill st-'+r.status+'">'+r.status+'</span>'+(ap?'<br><span style="font-size:10px;color:var(--muted)">'+ap+'</span>':'')+'</td>'
+      + '<td><span class="status-pill '+stCls(r.status)+'">'+r.status+'</span>'+(ap?'<br><span style="font-size:10px;color:var(--muted)">'+ap+'</span>':'')+'</td>'
       + '<td style="font-size:11px;color:var(--muted)">'+esc(who||'—')+'</td>'
       + '<td><select class="status-sel" onchange="changeStatus(\''+r.id+'\',this.value,this)">'+opts+'</select></td>'
       + '<td style="white-space:nowrap"><button class="btn btn-sm btn-outline" onclick="openDetail(\''+r.id+'\')">ดูใบสมัคร</button></td>'
@@ -2590,13 +2609,16 @@ function settingsHospitals(){  var list = settings.hospitals||[];
     + '<button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 บันทึก</button></div></div>';
 }
 function settingsStages(){
-  var list = settings.stages||[];
+  settings.stages = curStages();   // เติมสถานะระบบที่ยังไม่มีในการตั้งค่าเดิม
+  var list = settings.stages;
+  // สถานะที่ระบบใช้ตัดสินใจ (เมนู Onboarding / ไฟล์ TigerSoft) — ห้ามลบหรือเปลี่ยนชื่อ
+  var SYS_STAGES = ['ใหม่','ผ่าน','เริ่มงานแล้ว','No Show'];
   var rows = list.map(function(s,i){
-    var locked = (s==='ใหม่');  // กันลบสถานะเริ่มต้น
+    var locked = SYS_STAGES.indexOf(s)>-1;
     return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
       + '<span style="color:var(--muted);width:20px">'+(i+1)+'.</span>'
       + '<input value="'+val(s)+'" '+(locked?'disabled':'')+' oninput="settings.stages['+i+']=this.value" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:6px 10px'+(locked?';background:#f0f0f0':'')+'">'
-      + (locked?'<span style="font-size:11px;color:var(--muted)">สถานะเริ่มต้น</span>'
+      + (locked?'<span style="font-size:11px;color:var(--muted)">สถานะระบบ</span>'
               :'<button class="btn btn-sm" onclick="settings.stages.splice('+i+',1);render()">ลบ</button>')
       + '</div>';
   }).join('');
@@ -2788,7 +2810,7 @@ function buildLogSection(r){
 }
 function buildOnboardingSection(r){
   // แสดงเมื่อผู้สมัครผ่านการคัดเลือกแล้ว (พร้อมเริ่มงาน)
-  if(r.status!=='ผ่าน') return '';
+  if(!isStarter(r)) return '';
   var ob = r.onboard || {};
   var uni = ob.uniform || {};
   // checklist: รองรับทั้งรูปแบบเก่า (string) และใหม่ (object {key,task,done,by,at})
@@ -2917,13 +2939,16 @@ function viewOnboardMenu(){
       + '<dt>แผนก</dt><dd>'+esc(deptOf(d.pos1)||'-')+'</dd>'
       + '<dt>เลขบัตรประชาชน</dt><dd>'+esc(d.idCard||'-')+'</dd>'
       + '<dt>วันเริ่มงาน</dt><dd>'+(((r.appts||{}).start||{}).date?dateTH(r.appts.start.date):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</dd>'
+      + '<dt>สถานะ</dt><dd><span class="status-pill '+stCls(r.status)+'">'+esc(r.status)+'</span>'
+        + ((r.onboard||{}).startedOn ? ' <span style="font-size:12px;color:var(--muted)">มาเริ่มงานจริง '+dateTH(r.onboard.startedOn)+'</span>' : '')
+        + (r.status==='เริ่มงานแล้ว' ? '' : '<div style="margin-top:8px">'+startFlagCell(r)+'</div>')+'</dd>'
       + '</dl></div>'
       + buildOnboardingSection(r)
       + buildTrainingSection(r)
       + buildTigerSoftBox(r);
   }
   // รายชื่อพนักงานเริ่มงาน
-  var starters = records.filter(function(r){ return r.status==='ผ่าน'; });
+  var starters = records.filter(isStarter);
   starters.sort(function(a,b){
     var da=((a.appts||{}).start||{}).date||'9999'; var db=((b.appts||{}).start||{}).date||'9999';
     return da<db?-1:1;
@@ -2945,12 +2970,13 @@ function viewOnboardMenu(){
       + '<td style="text-align:center">'+(startDate?dateTH(startDate):'<span style="color:var(--muted)">ยังไม่นัด</span>')+'</td>'
       + '<td style="text-align:center">'+trainProgress(r)+'</td>'
       + '<td style="text-align:center">'+(done?'<span style="color:var(--success)">✓ ครบ</span>':'<span style="color:var(--warn)">รอกรอก</span>')+'</td>'
+      + '<td style="text-align:center">'+startFlagCell(r)+'</td>'
       + '<td style="text-align:center"><button class="btn btn-sm btn-outline" onclick="onboardView=\''+r.id+'\';render()">เปิด</button></td></tr>';
   }).join('');
   var selCount = Object.keys(onboardSel).filter(function(k){return onboardSel[k];}).length;
   var allChecked = starters.length && starters.every(function(r){return onboardSel[r.id];});
   var table = starters.length
-    ? '<table class="ats-table"><thead><tr><th style="text-align:center"><input type="checkbox" '+(allChecked?'checked':'')+' onclick="toggleAllOnboardSel()" style="width:16px;height:16px;cursor:pointer"></th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>วันเริ่มงาน</th><th>อบรม</th><th>TigerSoft</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    ? '<table class="ats-table"><thead><tr><th style="text-align:center"><input type="checkbox" '+(allChecked?'checked':'')+' onclick="toggleAllOnboardSel()" style="width:16px;height:16px;cursor:pointer"></th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>แผนก</th><th>วันเริ่มงาน</th><th>อบรม</th><th>TigerSoft</th><th>มาเริ่มงาน</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
     : '<div class="empty-state">ยังไม่มีพนักงานที่ผ่านการคัดเลือก</div>';
   var bulkBar = selCount>0
     ? '<div class="bulk-bar"><span>เลือก '+selCount+' คน</span>'
@@ -2967,9 +2993,54 @@ function viewOnboardMenu(){
     + '<div class="alert alert-info" style="font-size:13px;margin-bottom:12px">🔒 เมนูนี้มีข้อมูลเงินเดือนและข้อมูลสำหรับนำเข้า TigerSoft — แสดงเฉพาะเจ้าหน้าที่ที่ได้รับสิทธิ์ · ติ๊กเลือกรายชื่อเพื่อส่งคำขออบรม หรือสร้างไฟล์ TigerSoft เฉพาะคนที่เลือก (ถ้าไม่เลือกใครจะได้ทั้งหมด) · คลิกชื่อเพื่อดูรายคน</div>'
     + bulkBar + table + (onboardBulkModal ? bulkTrainModalHtml() : '');
 }
+// ช่อง "มาเริ่มงาน" ในตาราง Onboarding — ปุ่มบันทึกว่ามาเริ่มงานแล้ว / No Show
+function startFlagCell(r){
+  if(r.status==='เริ่มงานแล้ว'){
+    return '<span class="status-pill st-เริ่มงานแล้ว">✓ เริ่มงานแล้ว</span>';
+  }
+  return '<button class="btn btn-sm" style="background:#0f7a4a;color:#fff;padding:2px 8px" onclick="markStarted(\''+r.id+'\')">✓ มาแล้ว</button>'
+    + '<button class="btn btn-sm" style="background:#7a5c1e;color:#fff;padding:2px 8px;margin-left:4px" onclick="markNoShow(\''+r.id+'\')">🚫 No Show</button>';
+}
+// บันทึกว่าพนักงานมาเริ่มงานแล้ว (เก็บวันที่มาจริงไว้ใน onboard.startedOn)
+function markStarted(id){
+  var rec = records.filter(function(r){return r.id===id;})[0]; if(!rec) return;
+  var nm = (rec.data||{}).firstName+' '+(rec.data||{}).lastName;
+  var planned = ((rec.appts||{}).start||{}).date || '';
+  var today = new Date().toISOString().slice(0,10);
+  var d = prompt('บันทึกว่า "'+nm+'" มาเริ่มงานแล้ว\n\nวันที่มาเริ่มงานจริง (yyyy-mm-dd):', planned||today);
+  if(d===null) return;
+  d = fixBE_((d||'').trim()) || today;
+  rec.onboard = rec.onboard || {};
+  rec.onboard.startedOn = d;
+  rec.onboard.noShow = null;
+  var entry = logEntry('เริ่มงานแล้ว — วันที่ '+dateTH(d));
+  apiUpdate(id, {status:'เริ่มงานแล้ว', onboard:rec.onboard, logEntry:entry}).then(function(){
+    rec.status='เริ่มงานแล้ว'; rec.log=rec.log||[]; rec.log.push(entry);
+    if(currentRec && currentRec.id===id){ currentRec.status='เริ่มงานแล้ว'; currentRec.onboard=rec.onboard; }
+    toast('บันทึกแล้ว: '+nm+' เริ่มงานวันที่ '+dateTH(d)); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
+// บันทึกว่านัดมาเริ่มงานแล้วไม่มา (No Show)
+function markNoShow(id){
+  var rec = records.filter(function(r){return r.id===id;})[0]; if(!rec) return;
+  var nm = (rec.data||{}).firstName+' '+(rec.data||{}).lastName;
+  var reason = prompt('บันทึก No Show — "'+nm+'" นัดมาเริ่มงานแล้วไม่มา\n\nเหตุผล/หมายเหตุ (ไม่บังคับ):', '');
+  if(reason===null) return;
+  rec.onboard = rec.onboard || {};
+  rec.onboard.noShow = { at:new Date().toISOString(), by:(session&&session.name)||'-', reason:reason||'' };
+  rec.onboard.startedOn = null;
+  var entry = logEntry('No Show — ไม่มาเริ่มงาน'+(reason?' ('+reason+')':''));
+  apiUpdate(id, {status:'No Show', onboard:rec.onboard, logEntry:entry}).then(function(){
+    rec.status='No Show'; rec.log=rec.log||[]; rec.log.push(entry);
+    if(currentRec && currentRec.id===id){ currentRec.status='No Show'; currentRec.onboard=rec.onboard; }
+    delete onboardSel[id];
+    if(onboardView===id) onboardView=null;
+    toast('บันทึก No Show แล้ว: '+nm); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
+}
 function toggleOnboardSel(id){ onboardSel=onboardSel||{}; onboardSel[id]=!onboardSel[id]; render(); }
 function toggleAllOnboardSel(){
-  var starters=records.filter(function(r){return r.status==='ผ่าน';});
+  var starters=records.filter(isStarter);
   var allChecked=starters.every(function(r){return onboardSel&&onboardSel[r.id];});
   onboardSel={}; if(!allChecked) starters.forEach(function(r){onboardSel[r.id]=true;});
   render();
@@ -3353,7 +3424,7 @@ function viewDetail(){
     + '<button class="btn btn-sm btn-primary" onclick="printRecord(currentRec)">🖨 พิมพ์ / PDF</button>'
     + '<button class="btn btn-sm btn-accent" onclick="exportOne(currentRec)">📊 Excel</button></div></div>'
     + '<div class="card"><div class="card-header"><div class="icon">👤</div><h2>'+esc(d.firstName)+' '+esc(d.lastName)+' <small class="rec-no" style="font-family:monospace">'+esc(r.id)+'</small></h2>'
-    + '<div style="margin-left:auto;display:flex;align-items:center;gap:8px"><span class="status-pill st-'+r.status+'">'+r.status+'</span>'
+    + '<div style="margin-left:auto;display:flex;align-items:center;gap:8px"><span class="status-pill '+stCls(r.status)+'">'+r.status+'</span>'
     + '<select class="status-sel" onchange="changeStatus(currentRec.id,this.value,this)">'+opts+'</select></div></div>'
     + '<div style="display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:280px"><dl class="detail-grid">'
     + '<dt>ตำแหน่งที่สมัคร</dt><dd>'+esc(d.pos1||'-')+(d.pos2?' / '+esc(d.pos2):'')+(d.pos3?' / '+esc(d.pos3):'')+'</dd>'
