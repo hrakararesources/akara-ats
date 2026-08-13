@@ -696,6 +696,27 @@ function apiList(){
   return apiPost({action:'list'})
     .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(mapErr_(res)); } return res.records; });
 }
+// ดึงข้อมูลเต็มของผู้สมัคร 1 คน (รูปถ่าย + ลิงก์เอกสาร) — รายการหลักไม่ส่งมาเพื่อความเร็ว
+function apiRecord(id){
+  if(isDemo()){ return Promise.resolve(lsLoad().filter(function(r){return r.id===id;})[0]||null); }
+  return apiPost({action:'record', id:id})
+    .then(function(res){ if(!res.ok){ handleSessionError(res); throw new Error(mapErr_(res)); } return res.record; });
+}
+// เติมรูปถ่าย/ลิงก์เอกสารให้เรคคอร์ดที่ยังโหลดไม่ครบ แล้ว render ใหม่
+function ensureFullRecord(id, cb){
+  var rec = records.filter(function(r){return r.id===id;})[0];
+  if(!rec || rec._full){ if(cb) cb(rec); return; }
+  apiRecord(id).then(function(full){
+    if(full){
+      rec.photo = full.photo;
+      rec.data = full.data || rec.data;   // data.docs มี signed URL แล้ว
+      rec._full = true;
+      if(currentRec && currentRec.id===id){ currentRec.photo=rec.photo; currentRec.data=rec.data; currentRec._full=true; }
+    }
+    if(cb) cb(rec);
+    render();
+  }).catch(function(){ if(cb) cb(rec); });
+}
 function mapErr_(res){
   var e = res.error||'';
   if(e==='session_expired') return 'session_expired';
@@ -1465,7 +1486,7 @@ function changeStatus(id, st, selEl){
 }
 function openDetail(id){
   currentRec = records.filter(function(r){return r.id===id;})[0] || null;
-  if(currentRec){ view='detail'; render(); window.scrollTo(0,0); }
+  if(currentRec){ view='detail'; render(); window.scrollTo(0,0); ensureFullRecord(id); }
 }
 function saveNote(){
   if(!currentRec) return;
@@ -3337,7 +3358,9 @@ function buildDocsSection(r){
     }).join('');
   }
   var label = '<div class="section-label" style="margin-top:14px">เอกสารแนบ Documents'+(docs.length?' ('+docs.length+' ไฟล์)':'')+'</div>';
-  return label + body + buildHrDocAdd(r.id);
+  // ลิงก์เปิดไฟล์ (signed URL) ถูกดึงตอนเปิดหน้ารายละเอียด — ระหว่างรอจะยังกดเปิดไม่ได้
+  var loading = (docs.length && !r._full) ? '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">⏳ กำลังเตรียมลิงก์เปิดไฟล์…</div>' : '';
+  return label + loading + body + buildHrDocAdd(r.id);
 }
 // กล่องให้ HR เพิ่มเอกสารเข้าเรคคอร์ดผู้สมัคร (โผล่ในหน้ารายละเอียด — HR ทุกคนใช้ได้)
 function buildHrDocAdd(recId){
@@ -3436,7 +3459,11 @@ function viewDetail(){
     + '<dt>สถานะทหาร</dt><dd>'+(milLabel(d.military)||'-')+'</dd>'
     + '<dt>วันที่สมัคร</dt><dd>'+dateTH(r.ts)+'</dd>'
     + '</dl></div>'
-    + (r.photo?'<div><img src="'+r.photo+'" style="width:110px;height:138px;object-fit:cover;border:1px solid var(--border);border-radius:4px"></div>':'')
+    + (r.photo
+        ? '<div><img src="'+r.photo+'" style="width:110px;height:138px;object-fit:cover;border:1px solid var(--border);border-radius:4px"></div>'
+        : (r.hasPhoto && !r._full
+            ? '<div style="width:110px;height:138px;border:1px dashed var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);text-align:center">กำลังโหลด<br>รูปถ่าย…</div>'
+            : ''))
     + '</div>'
     + buildApptSection(r)
     + buildOnboardingSection(r)
@@ -3740,6 +3767,12 @@ function fitPrintPages_(){
 }
 function printRecord(rec){
   if(!rec){ alert('ไม่พบข้อมูลสำหรับพิมพ์'); return; }
+  // รูปถ่าย/ลิงก์เอกสารถูกโหลดแยก — ถ้ายังมาไม่ถึง ให้ดึงก่อนแล้วค่อยพิมพ์ (ไม่งั้นใบสมัครจะไม่มีรูป)
+  if(rec.hasPhoto && !rec._full && !isDemo()){
+    toast('กำลังโหลดรูปถ่ายก่อนพิมพ์…');
+    ensureFullRecord(rec.id, function(full){ if(full) printRecord(full); });
+    return;
+  }
   var pa = $('printArea');
   pa.innerHTML = buildPrintDoc(rec);
   var over = fitPrintPages_();
@@ -3753,6 +3786,10 @@ function printRecord(rec){
 }
 function previewPrint(rec){
   if(!rec) return;
+  if(rec.hasPhoto && !rec._full && !isDemo() && !document.body.classList.contains('preview-mode')){
+    ensureFullRecord(rec.id, function(full){ if(full) previewPrint(full); });
+    return;
+  }
   var pa = $('printArea');
   if(document.body.classList.contains('preview-mode')){
     document.body.classList.remove('preview-mode'); pa.innerHTML=''; return;
