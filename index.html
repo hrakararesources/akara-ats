@@ -682,7 +682,7 @@ function nextRecNo(arr){
 var API_TIMEOUT_MS = 20000;  // คำขอที่สำเร็จปกติใช้ ~4-5 วิ — เกิน 20 วิถือว่าค้าง ตัดแล้วยิงใหม่เร็วกว่ารอ
 var API_RETRY_MAX  = 4;      // จำนวนครั้งรวมที่ยิงต่อ 1 คำขอ
 var RETRYABLE_ACTIONS = {
-  list:1, jobs:1, settings:1, record:1, ping:1,
+  list:1, jobs:1, settings:1, record:1, docFile:1, ping:1,
   checkDuplicate:1, trainInfo:1, trainBatchInfo:1
 };
 function fetchTimeout_(url, opts, ms){
@@ -891,10 +891,12 @@ function apiJobs(){
 function apiSaveJob(job){
   if(isDemo()){
     var arr = jobsLoadLS();
+    var prevId = job.id;
+    if(job.newId){ job.id = job.newId; delete job.newId; }   // เปลี่ยนรหัสในโหมดทดลอง
     if(!job.id){ job.id = nextJobNo(arr); arr.unshift(job); }
     else {
       var found=false;
-      arr = arr.map(function(j){ if(j.id===job.id){found=true;return job;} return j; });
+      arr = arr.map(function(j){ if(j.id===job.id || (prevId && j.id===prevId)){found=true;return job;} return j; });
       if(!found) arr.unshift(job);
     }
     jobsSaveLS(arr);
@@ -1743,6 +1745,23 @@ function editJob(id){
 function cancelEditJob(){ editingJob=null; render(); }
 function saveJob(){
   var t=$('jb_title'); if(!t||!t.value.trim()){ alert('กรุณาระบุชื่อตำแหน่ง'); return; }
+  // รหัสตำแหน่ง (เลข JD) — กรอกเองได้ทั้งประกาศใหม่และแก้ของเดิม
+  var idInput = $('jb_id') ? $('jb_id').value.trim() : '';
+  var oldId = editingJob.id || '';
+  if(idInput){
+    if(/[\\/\[\]*?:]/.test(idInput)){ alert('รหัสตำแหน่งห้ามมีอักขระ \\ / [ ] * ? :'); return; }
+    var dup = jobs.filter(function(j){ return j.id===idInput && j.id!==oldId; })[0];
+    if(dup){ alert('รหัส "'+idInput+'" ถูกใช้กับตำแหน่ง "'+(dup.title||'')+'" แล้ว กรุณาใช้รหัสอื่น'); return; }
+  } else if(oldId){
+    idInput = oldId;   // ประกาศเดิมที่ลบรหัสทิ้ง → คงรหัสเดิมไว้
+  }
+  if(oldId && idInput!==oldId){
+    if(!confirm('เปลี่ยนรหัสตำแหน่ง\n\n  '+oldId+'  →  '+idInput+'\n\nรหัสเดิมจะไม่ถูกใช้อีก ยืนยันหรือไม่?')) return;
+    editingJob.newId = idInput;      // ให้ backend เปลี่ยนรหัสในแถวเดิม
+  } else {
+    delete editingJob.newId;
+    if(!oldId) editingJob.id = idInput;   // ประกาศใหม่: ใช้รหัสที่กรอก (ว่าง = backend รันเลขให้)
+  }
   editingJob.title = t.value.trim();
   editingJob.dept = $('jb_dept') ? $('jb_dept').value.trim() : '';
   editingJob.location = $('jb_loc') ? $('jb_loc').value.trim() : '';
@@ -1753,11 +1772,13 @@ function saveJob(){
   if(!editingJob.posted) editingJob.posted = new Date().toISOString();
   editingJob.by = (session&&session.name) || editingJob.by || '-';
   apiSaveJob(editingJob).then(function(saved){
+    delete saved.newId;
     var found=false;
-    jobs = jobs.map(function(j){ if(j.id===saved.id){found=true;return saved;} return j; });
+    // กรณีเปลี่ยนรหัส ต้องจับคู่ด้วยรหัสเดิมด้วย ไม่งั้นจะได้ประกาศซ้ำในรายการ
+    jobs = jobs.map(function(j){ if(j.id===saved.id || (oldId && j.id===oldId)){found=true;return saved;} return j; });
     if(!found) jobs.unshift(saved);
     editingJob=null;
-    toast('บันทึกตำแหน่งงานแล้ว');
+    toast(oldId && saved.id!==oldId ? 'บันทึกแล้ว — เปลี่ยนรหัสเป็น '+saved.id : 'บันทึกตำแหน่งงานแล้ว');
     render();
   }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
@@ -2703,7 +2724,10 @@ function viewJobsAdmin(){
   if(editingJob){
     form = '<div class="card" style="border-left:4px solid var(--accent)">'
       + '<div class="card-header"><div class="icon">'+(editingJob.id?'✏️':'➕')+'</div><h2>'+(editingJob.id?'แก้ไขตำแหน่ง '+esc(editingJob.id):'เพิ่มตำแหน่งงานใหม่')+'</h2></div>'
-      + '<div class="form-grid g2">'
+      + '<div class="form-grid g3">'
+      + '<div class="form-group"><label><span class="th">รหัสตำแหน่ง / เลข JD</span></label>'
+      + '<input id="jb_id" value="'+val(editingJob.id)+'" placeholder="เช่น JD-MTN-014" style="font-family:var(--font-head)">'
+      + '<span style="font-size:11px;color:var(--muted)">'+(editingJob.id?'แก้ได้ — ระบบจะเปลี่ยนรหัสของประกาศนี้ให้':'เว้นว่าง = ระบบรันเลขให้อัตโนมัติ')+'</span></div>'
       + '<div class="form-group"><label><span class="th">ชื่อตำแหน่ง *</span></label><input id="jb_title" value="'+val(editingJob.title)+'" placeholder="เช่น ช่างไฟฟ้า"></div>'
       + '<div class="form-group"><label><span class="th">แผนก / หน่วยงาน</span></label><input id="jb_dept" value="'+val(editingJob.dept)+'" placeholder="เช่น Maintenance, Mining, HR"></div></div>'
       + '<div class="form-grid g3" style="margin-top:10px">'
@@ -3543,10 +3567,17 @@ function buildDocsSection(r){
       var files = docs.filter(function(x){return x.type===t.k;});
       if(!files.length) return '';
       var items = files.map(function(f){
+        var gi = docs.indexOf(f);   // ลำดับไฟล์จริงใน record (ใช้ขอไฟล์จากเซิร์ฟเวอร์)
         var hrBadge = (f.bySide==='hr') ? ' <span style="font-size:9px;background:var(--primary);color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle" title="เพิ่มโดย HR'+(f.by?' — '+esc(f.by):'')+'">HR</span>' : '';
         var inner = '<span class="doc-chip-icon">'+(f.mime==='application/pdf'?'📕':'🖼')+'</span>'
           + '<span class="doc-chip-name">'+esc(f.name)+'</span>'+hrBadge
           + '<span class="doc-chip-size">'+fmtSize(f.size||0)+'</span>';
+        // ไฟล์เก่าบน Google Drive: เปิดผ่านระบบ (ใช้สิทธิ์ของ HR ที่ล็อกอิน) แทนลิงก์ Drive ตรงๆ
+        // ไม่งั้น HR คนอื่นจะเจอหน้าขอสิทธิ์ของ Google เพราะไฟล์ไม่ได้แชร์ไว้
+        var isDrive = (f.storage==='drive') || (!f.storage && /drive\.google\.com|docs\.google\.com/.test(f.url||''));
+        if(isDrive && !isDemo()){
+          return '<a class="doc-chip link" href="javascript:void(0)" onclick="openDocFile(\''+r.id+'\','+gi+',this)">'+inner+' <span style="color:var(--primary)">เปิด ↗</span></a>';
+        }
         if(f.url){
           return '<a class="doc-chip link" href="'+esc(f.url)+'" target="_blank" rel="noopener">'+inner+' <span style="color:var(--primary)">เปิด ↗</span></a>';
         }
@@ -3559,6 +3590,29 @@ function buildDocsSection(r){
   // ลิงก์เปิดไฟล์ (signed URL) ถูกดึงตอนเปิดหน้ารายละเอียด — ระหว่างรอจะยังกดเปิดไม่ได้
   var loading = (docs.length && !r._full) ? '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">⏳ กำลังเตรียมลิงก์เปิดไฟล์…</div>' : '';
   return label + loading + body + buildHrDocAdd(r.id);
+}
+// เปิดไฟล์แนบที่เก็บบน Google Drive ผ่านระบบ (HR ทุกคนที่ล็อกอินเปิดได้ ไม่ต้องแชร์ไฟล์ให้ทีละคน)
+function openDocFile(recId, index, el){
+  // ต้องเปิดแท็บไว้ก่อน "ตอนกดปุ่ม" ไม่งั้นเบราว์เซอร์จะบล็อกป๊อปอัปหลังโหลดเสร็จ
+  var w = window.open('', '_blank');
+  if(w) w.document.write('<p style="font-family:sans-serif;padding:24px">กำลังเปิดไฟล์…</p>');
+  var old = el ? el.innerHTML : '';
+  if(el) el.style.opacity = '.6';
+  apiPost({action:'docFile', id:recId, index:index}).then(function(res){
+    if(el){ el.style.opacity=''; el.innerHTML = old; }
+    if(!res.ok){ if(w) w.close(); handleSessionError(res); alert('เปิดไฟล์ไม่สำเร็จ: '+(res.error||'')); return; }
+    if(res.url){ if(w) w.location = res.url; else window.open(res.url,'_blank'); return; }   // ไฟล์บน Supabase
+    // แปลง base64 → Blob แล้วเปิดในแท็บที่จองไว้
+    var bin = atob(res.b64||''), len = bin.length, buf = new Uint8Array(len);
+    for(var i=0;i<len;i++) buf[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([buf], {type: res.mime||'application/octet-stream'}));
+    if(w) w.location = url; else window.open(url,'_blank');
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+  }).catch(function(err){
+    if(el){ el.style.opacity=''; el.innerHTML = old; }
+    if(w) w.close();
+    alert('เปิดไฟล์ไม่สำเร็จ: '+err.message);
+  });
 }
 // กล่องให้ HR เพิ่มเอกสารเข้าเรคคอร์ดผู้สมัคร (โผล่ในหน้ารายละเอียด — HR ทุกคนใช้ได้)
 function buildHrDocAdd(recId){
