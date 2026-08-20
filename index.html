@@ -1739,7 +1739,7 @@ function clearAppt(typeKey){
 // ─── Jobs admin ──────────────────────────────────────────────────────
 function editJob(id){
   editingJob = id ? JSON.parse(JSON.stringify(jobs.filter(function(j){return j.id===id;})[0]||null))
-                  : { id:'', title:'', dept:'', location:'Chatree Gold Mine, พิจิตร', type:'พนักงานประจำ', openings:1, status:'เปิดรับ', posted:new Date().toISOString(), by:(session&&session.name)||'-' };
+                  : { id:'', title:'', dept:'', location:'Chatree Gold Mine, พิจิตร', type:'พนักงานประจำ', openings:1, status:'เปิดรับ', duty:'', qual:'', posted:new Date().toISOString(), by:(session&&session.name)||'-' };
   render();
 }
 function cancelEditJob(){ editingJob=null; render(); }
@@ -1768,6 +1768,7 @@ function saveJob(){
   editingJob.type = $('jb_type') ? $('jb_type').value : 'พนักงานประจำ';
   editingJob.openings = parseInt($('jb_open') ? $('jb_open').value : '1',10) || 1;
   editingJob.status = $('jb_status') ? $('jb_status').value : 'เปิดรับ';
+  editingJob.duty = $('jb_duty') ? $('jb_duty').value.trim() : '';
   editingJob.qual = $('jb_qual') ? $('jb_qual').value.trim() : '';
   if(!editingJob.posted) editingJob.posted = new Date().toISOString();
   editingJob.by = (session&&session.name) || editingJob.by || '-';
@@ -1817,9 +1818,13 @@ function jobDetailModalHtml(){
     + '<span>👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
     + '<span>📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
     + '</div>'
+    + (j.duty
+        ? '<div class="section-label" style="font-size:12px;margin-bottom:6px">📌 หน้าที่และความรับผิดชอบ</div><div class="job-detail-qual">'+esc(j.duty)+'</div>'
+        : '')
     + (j.qual
-        ? '<div class="section-label" style="font-size:12px;margin-bottom:6px">คุณสมบัติ / รายละเอียด</div><div class="job-detail-qual">'+esc(j.qual)+'</div>'
-        : '<div style="font-size:13px;color:var(--muted)">— ไม่ได้ระบุรายละเอียดเพิ่มเติม —</div>')
+        ? '<div class="section-label" style="font-size:12px;margin:14px 0 6px">✅ คุณสมบัติผู้สมัคร</div><div class="job-detail-qual">'+esc(j.qual)+'</div>'
+        : '')
+    + ((!j.duty && !j.qual) ? '<div style="font-size:13px;color:var(--muted)">— ไม่ได้ระบุรายละเอียดเพิ่มเติม —</div>' : '')
     + '<div style="font-size:11.5px;color:var(--muted);margin-top:14px">ประกาศเมื่อ '+dateTH(j.posted)+'</div>'
     + '<div style="display:flex;gap:10px;margin-top:20px">'
     + '<button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeJobDetail()">ปิด</button>'
@@ -1860,7 +1865,7 @@ function viewHome(){
       + '<span class="tag">👥 รับ '+esc(j.openings||1)+' อัตรา</span>'
       + '<span class="tag">📋 '+esc(j.type||'พนักงานประจำ')+'</span>'
       + '</div>'
-      + (j.qual?'<div class="job-qual">'+esc(j.qual)+'</div>':'')
+      + ((j.duty||j.qual)?'<div class="job-qual">'+esc(j.duty||j.qual)+'</div>':'')
       + '<div class="job-card-foot">'
       + '<span style="font-size:11px;color:var(--muted)">ประกาศ '+dateTH(j.posted)+'</span>'
       + '<span class="job-more">ดูรายละเอียด →</span>'
@@ -2735,7 +2740,10 @@ function viewJobsAdmin(){
       + '<div class="form-group"><label><span class="th">ประเภทการจ้าง</span></label><select id="jb_type">'
       + ['พนักงานประจำ','สัญญาจ้าง','รายวัน','ฝึกงาน'].map(function(o){return '<option'+(editingJob.type===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>'
       + '<div class="form-group"><label><span class="th">จำนวนที่ต้องการ (อัตรา)</span></label><input id="jb_open" type="number" min="1" value="'+val(editingJob.openings||1)+'"></div></div>'
-      + '<div class="form-group" style="margin-top:10px"><label><span class="th">คุณสมบัติโดยย่อ</span> <span class="en">แสดงในประกาศรับสมัคร — ขึ้นบรรทัดใหม่ได้ ใส่ได้หลายข้อ</span></label>'
+      + '<div class="form-group" style="margin-top:10px"><label><span class="th">หน้าที่และความรับผิดชอบ</span> <span class="en">แสดงในประกาศรับสมัคร — พิมพ์บรรทัดละ 1 ข้อ</span></label>'
+      + '<textarea id="jb_duty" rows="8" style="min-height:170px;line-height:1.7;font-size:14px;padding:10px 12px" '
+      + 'placeholder="ตัวอย่าง (พิมพ์บรรทัดละ 1 ข้อ)&#10;- ตรวจสอบและซ่อมบำรุงระบบไฟฟ้าในพื้นที่ปฏิบัติงาน&#10;- บันทึกและรายงานผลการตรวจสอบประจำวัน&#10;- ปฏิบัติงานตามมาตรฐานความปลอดภัยของบริษัท&#10;- งานอื่นๆ ตามที่ได้รับมอบหมาย">'+val(editingJob.duty)+'</textarea></div>'
+      + '<div class="form-group" style="margin-top:10px"><label><span class="th">คุณสมบัติผู้สมัคร</span> <span class="en">แสดงในประกาศรับสมัคร — พิมพ์บรรทัดละ 1 ข้อ</span></label>'
       + '<textarea id="jb_qual" rows="8" style="min-height:170px;line-height:1.7;font-size:14px;padding:10px 12px" '
       + 'placeholder="ตัวอย่าง (พิมพ์บรรทัดละ 1 ข้อ)&#10;- วุฒิ ปวส. ขึ้นไป สาขาไฟฟ้า หรือสาขาที่เกี่ยวข้อง&#10;- มีประสบการณ์งานซ่อมบำรุงอย่างน้อย 2 ปี&#10;- มีใบอนุญาตผู้ปฏิบัติงานไฟฟ้า จะพิจารณาเป็นพิเศษ&#10;- สามารถทำงานเป็นกะได้">'+val(editingJob.qual)+'</textarea></div>'
       + '<div class="form-grid g2" style="margin-top:10px"><div class="form-group"><label><span class="th">สถานะประกาศ</span></label><select id="jb_status">'
@@ -2747,7 +2755,7 @@ function viewJobsAdmin(){
     var applied = records.filter(function(r){ return r.data && r.data.pos1===j.title; }).length;
     return '<tr>'
       + '<td class="rec-no">'+esc(j.id)+'</td>'
-      + '<td><strong>'+esc(j.title)+'</strong>'+(j.qual?'<br><span style="font-size:11px;color:var(--muted)">'+esc(j.qual).slice(0,60)+'</span>':'')+'</td>'
+      + '<td><strong>'+esc(j.title)+'</strong>'+((j.duty||j.qual)?'<br><span style="font-size:11px;color:var(--muted)">'+esc((j.duty||j.qual).replace(/\s+/g,' ')).slice(0,60)+'</span>':'')+'</td>'
       + '<td>'+esc(j.dept||'-')+'</td>'
       + '<td style="text-align:center">'+esc(j.openings||1)+'</td>'
       + '<td style="text-align:center"><strong>'+applied+'</strong></td>'
