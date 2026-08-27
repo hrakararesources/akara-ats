@@ -681,6 +681,10 @@ function nextRecNo(arr){
 // จึงตั้งเวลาคอยสูงสุดต่อครั้ง แล้วลองใหม่อัตโนมัติ — เฉพาะคำสั่ง "อ่านข้อมูล" ที่เรียกซ้ำได้ปลอดภัย
 var API_TIMEOUT_MS = 20000;  // คำขอที่สำเร็จปกติใช้ ~4-5 วิ — เกิน 20 วิถือว่าค้าง ตัดแล้วยิงใหม่เร็วกว่ารอ
 var API_RETRY_MAX  = 4;      // จำนวนครั้งรวมที่ยิงต่อ 1 คำขอ
+// คำสั่งที่ต้องอัปโหลดไฟล์ ยิงซ้ำไม่ได้ (กันบันทึกซ้ำ) และผู้ใช้มือถือสัญญาณอ่อนอาจส่งไฟล์ 15MB นานเป็นนาที
+// จึงต้องรอนานกว่าคำสั่งอ่าน ซึ่งตัดเร็วได้เพราะยิงใหม่ได้อยู่แล้ว
+var SUBMIT_TIMEOUT_MS = 120000;
+var SLOW_ACTIONS = { submit:1, hrAddDocs:1 };
 var RETRYABLE_ACTIONS = {
   list:1, jobs:1, settings:1, record:1, docFile:1, ping:1,
   checkDuplicate:1, trainInfo:1, trainBatchInfo:1
@@ -710,13 +714,14 @@ function apiPost(payload){
   payload.token = CONFIG.API_TOKEN;
   if(session && session.sid) payload.sid = session.sid;
   var body = JSON.stringify(payload);
+  var tmo = SLOW_ACTIONS[payload.action] ? SUBMIT_TIMEOUT_MS : API_TIMEOUT_MS;
   return withRetry_(payload.action, function(){
     return fetchTimeout_(CONFIG.API_URL, {
       method:'POST',
       redirect:'follow',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: body
-    }).then(parseApiResponse_);
+    }, tmo).then(parseApiResponse_);
   }).catch(function(err){ throw netError_(err); });
 }
 function apiGet(qs){
@@ -1484,6 +1489,14 @@ function submitForm(){
     if(bn){bn.disabled=false;bn.textContent='✓ ส่งใบสมัคร';}
     if(err.code==='duplicate'){ alert(err.message); }
     else if(err.code==='otp_invalid'){ otpState.verified=false; alert('รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาขอรหัสใหม่'); render(); }
+    else if(err._transient){
+      // หมดเวลาคอย/เซิร์ฟเวอร์ตอบไม่ถึง — Apps Script มักทำงานต่อจนบันทึกสำเร็จ การกดส่งซ้ำจะไปเจอ error สมัครซ้ำแทน
+      var co = (settings && settings.company) || {};
+      var contact = co.hrPhone || co.hrEmail || '';
+      alert('การส่งใช้เวลานานกว่าปกติ ระบบจึงหยุดรอการตอบกลับ\n\n'
+          + 'ใบสมัครของคุณอาจถูกบันทึกเรียบร้อยแล้ว กรุณาอย่ากดส่งซ้ำ\n'
+          + 'ติดต่อฝ่ายทรัพยากรบุคคล'+(contact?' ('+contact+')':'')+' เพื่อตรวจสอบก่อนสมัครใหม่');
+    }
     else { alert('ส่งใบสมัครไม่สำเร็จ: '+err.message+'\nกรุณาลองใหม่อีกครั้ง'); }
   });
 }
