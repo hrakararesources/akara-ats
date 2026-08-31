@@ -527,6 +527,7 @@ var reportView = null;        // null = หน้าการ์ดรวม | s
 var onboardView = null;       // null = รายการพนักงาน | id ของพนักงานที่กำลังดู
 var onboardSel = {};          // เลือกพนักงานหลายคน (สำหรับส่งอบรมพร้อมกัน)
 var onboardBulkModal = false; // เปิด modal เลือกหัวข้ออบรม
+var posEditModal = false;  // เปิด modal แก้ไข/เพิ่มตำแหน่งที่สมัคร (หน้ารายละเอียดผู้สมัคร)
 var onboardBulkSelMods = {};  // หัวข้อที่เลือกใน modal
 var apptView = null;          // มุมมองนัดหมาย: 'list' (รายการ) | 'calendar' (ปฏิทิน)
 var apptFilter = { type:'', when:'upcoming' };  // ตัวกรองนัดหมาย
@@ -835,7 +836,7 @@ function apiHrLogin(user, pass){
   }
   return apiPost({action:'hrLogin', user:user, pass:pass});
 }
-// fields: {status, note, appts, logEntry}
+// fields: {status, note, appts, onboard, pos, logEntry}
 function apiUpdate(id, fields){
   if(isDemo()){
     var arr = lsLoad();
@@ -845,6 +846,10 @@ function apiUpdate(id, fields){
         if(fields.note!==undefined) r.note=fields.note;
         if(fields.appts!==undefined) r.appts=fields.appts;
         if(fields.onboard!==undefined) r.onboard=fields.onboard;
+        if(fields.pos!==undefined && fields.pos){
+          r.data = r.data || {};
+          r.data.pos1 = fields.pos.pos1||''; r.data.pos2 = fields.pos.pos2||''; r.data.pos3 = fields.pos.pos3||'';
+        }
         if(fields.logEntry){ r.log = r.log||[]; r.log.push(fields.logEntry); }
       }
     });
@@ -1601,6 +1606,7 @@ function changeStatus(id, st, selEl){
 }
 function openDetail(id){
   currentRec = records.filter(function(r){return r.id===id;})[0] || null;
+  posEditModal = false;
   if(currentRec){ view='detail'; render(); window.scrollTo(0,0); ensureFullRecord(id); }
 }
 function saveNote(){
@@ -3723,7 +3729,8 @@ function viewDetail(){
     + '<div style="margin-left:auto;display:flex;align-items:center;gap:8px"><span class="status-pill '+stCls(r.status)+'">'+r.status+'</span>'
     + '<select class="status-sel" onchange="changeStatus(currentRec.id,this.value,this)">'+opts+'</select></div></div>'
     + '<div style="display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:280px"><dl class="detail-grid">'
-    + '<dt>ตำแหน่งที่สมัคร</dt><dd>'+esc(d.pos1||'-')+(d.pos2?' / '+esc(d.pos2):'')+(d.pos3?' / '+esc(d.pos3):'')+'</dd>'
+    + '<dt>ตำแหน่งที่สมัคร</dt><dd>'+esc(d.pos1||'-')+(d.pos2?' / '+esc(d.pos2):'')+(d.pos3?' / '+esc(d.pos3):'')
+    + ' <a style="color:var(--primary);cursor:pointer;font-size:12px;white-space:nowrap" onclick="openPosEdit()">✏️ แก้ไข/เพิ่มตำแหน่ง</a></dd>'
     + '<dt>เงินเดือนที่คาดหวัง</dt><dd>'+esc(d.salary||'-')+' บาท</dd>'
     + '<dt>วันเกิด</dt><dd>'+dateTH(d.dob)+'</dd>'
     + '<dt>โทรศัพท์</dt><dd>'+esc(d.phone||'-')+'</dd>'
@@ -3748,7 +3755,49 @@ function viewDetail(){
     + '<textarea class="note-area" id="noteArea" placeholder="บันทึกผลสัมภาษณ์ ข้อสังเกต ฯลฯ">'+esc(r.note||'')+'</textarea>'
     + '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" onclick="saveNote()">บันทึก</button></div>'
     + buildLogSection(r)
-    + '</div>');
+    + '</div>'
+    + (posEditModal ? posEditModalHtml(d) : ''));
+}
+// ── HR แก้ไข/เพิ่มตำแหน่งที่สมัครในใบเดิม (ผู้สมัครขอเปลี่ยนตำแหน่ง หรือสมัครตำแหน่งอื่นเพิ่ม) ──
+// แก้ในใบเดิมแทนการให้สมัครใหม่ เพื่อไม่ให้ประวัตินัดหมาย/เอกสาร/บันทึก HR แตกเป็นสองใบ
+function openPosEdit(){ posEditModal = true; render(); }
+function closePosEdit(){ posEditModal = false; render(); }
+function posEditModalHtml(d){
+  var openTitles = jobs.filter(function(j){ return j.status==='เปิดรับ'; })
+                       .map(function(j){ return '<option value="'+esc(j.title)+'">'; }).join('');
+  function row(lb, id, v){
+    return '<div class="form-group"><label><span class="th">'+lb+'</span></label>'
+      + '<input id="'+id+'" list="posEditJobs" value="'+esc(v||'')+'" maxlength="'+LIMITS.pos+'" placeholder="พิมพ์ชื่อตำแหน่ง หรือเลือกจากตำแหน่งที่เปิดรับ"></div>';
+  }
+  return '<div class="modal-overlay" onclick="if(event.target===this)closePosEdit()">'
+    + '<div class="modal-box"><h3 style="margin:0 0 4px;color:var(--primary)">แก้ไข / เพิ่มตำแหน่งที่สมัคร</h3>'
+    + '<p style="font-size:13px;color:var(--muted);margin:0 0 12px">ใบสมัครเลขรับ '+esc(currentRec.id)+' — การเปลี่ยนแปลงจะถูกบันทึกในประวัติการทำงาน (Log) ว่าใครแก้เมื่อใด</p>'
+    + '<datalist id="posEditJobs">'+openTitles+'</datalist>'
+    + row('ตำแหน่งลำดับที่ 1 *','pe_pos1',d.pos1)
+    + row('ตำแหน่งลำดับที่ 2','pe_pos2',d.pos2)
+    + row('ตำแหน่งลำดับที่ 3','pe_pos3',d.pos3)
+    + '<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="savePos()">บันทึก</button>'
+    + '<button class="btn" onclick="closePosEdit()">ยกเลิก</button></div></div></div>';
+}
+function savePos(){
+  if(!currentRec) return;
+  var d = currentRec.data || {};
+  var p1 = (($('pe_pos1')||{}).value||'').trim();
+  var p2 = (($('pe_pos2')||{}).value||'').trim();
+  var p3 = (($('pe_pos3')||{}).value||'').trim();
+  if(!p1){ alert('กรุณาระบุตำแหน่งลำดับที่ 1'); return; }
+  var before = [d.pos1,d.pos2,d.pos3].filter(Boolean).join(' / ') || '-';
+  var after  = [p1,p2,p3].filter(Boolean).join(' / ');
+  if(before===after){ closePosEdit(); return; }
+  var entry = logEntry('แก้ไขตำแหน่งที่สมัคร: '+before+' → '+after);
+  apiUpdate(currentRec.id, {pos:{pos1:p1,pos2:p2,pos3:p3}, logEntry:entry}).then(function(){
+    d.pos1=p1; d.pos2=p2; d.pos3=p3;
+    currentRec.data = d;
+    currentRec.log = currentRec.log||[]; currentRec.log.push(entry);
+    records.forEach(function(x){ if(x.id===currentRec.id){ x.data=x.data||{}; x.data.pos1=p1; x.data.pos2=p2; x.data.pos3=p3; } });
+    posEditModal = false;
+    toast('บันทึกตำแหน่งแล้ว'); render();
+  }).catch(function(err){ alert('บันทึกไม่สำเร็จ: '+err.message); });
 }
 function viewSuccess(){
   var rec = lastSubmitted || {id:'-'};
